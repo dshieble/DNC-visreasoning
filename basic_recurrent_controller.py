@@ -3,10 +3,13 @@ import tensorflow as tf
 from dnc.controller import BaseController
 from tensorflow.python.ops import rnn_cell
 """
-A 2-Layers feedforward neural network with 128, 256 nodes respectively
+A recurrent controller
+
+NOTE - LARGER BATCH SIZE (at least 10) IMPROVES convergence for this controller
+
 """
 
-class RecurrentController(BaseController):
+class BasicRecurrentController(BaseController):
 
     def network_vars(self, batch_size):
         initial_std = lambda in_nodes: np.min(1e-2, np.sqrt(2.0 / in_nodes))

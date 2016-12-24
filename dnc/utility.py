@@ -144,7 +144,12 @@ def get_im_sequence(batch_x, batch_y):
                    (-1, 16, 49))
     return X, batch_y
 
+def 
+    #TODO: Take argmax window vector rather than indexing directly 
+
+
 def window_vector(X, ind_1, ind_2, window_size=3):
+    #TODO: Implement wrapping instead of maximum
     return X[:, tf.maximum(0, ind_1):tf.minimum(ind_1 + window_size, tf.shape(X)[1]), 
                 tf.maximum(0, ind_2):tf.minimum(ind_2 + window_size, tf.shape(X)[1])]    
 
