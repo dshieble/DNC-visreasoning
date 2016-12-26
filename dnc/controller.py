@@ -3,7 +3,7 @@ import numpy as np
 
 class BaseController:
 
-    def __init__(self, input_size, output_size, memory_read_heads, memory_word_size, batch_size=1):
+    def __init__(self, input_size, output_size, memory_read_heads, memory_word_size, max_sequence_length, batch_size=1):
         """
         constructs a controller as described in the DNC paper:
         http://www.nature.com/nature/journal/vaop/ncurrent/full/nature20101.html
@@ -27,7 +27,7 @@ class BaseController:
         self.read_heads = memory_read_heads
         self.word_size = memory_word_size
         self.batch_size = batch_size
-
+        self.max_sequence_length = max_sequence_length
         # indicates if the internal neural network is recurrent
         # by the existence of recurrent_update and get_state methods
         has_recurrent_update = callable(getattr(self, 'update_state', None))
@@ -42,7 +42,7 @@ class BaseController:
 
         # define network vars
         with tf.name_scope("controller"):
-            self.network_vars(batch_size)
+            self.network_vars()
 
             nn_output_size = None
             with tf.variable_scope("shape_inference"):
@@ -101,9 +101,9 @@ class BaseController:
         output_vector = None
 
         if self.has_recurrent_nn:
-            output_vector,_ = self.network_op(input_vector, self.get_state())
+            output_vector,_ = self.network_op(input_vector, self.get_state(), t=0)
         else:
-            output_vector = self.network_op(input_vector)
+            output_vector = self.network_op(input_vector, t=0)
 
         shape = output_vector.get_shape().as_list()
 
@@ -166,7 +166,7 @@ class BaseController:
 
         return parsed
 
-    def process_input(self, X, last_read_vectors, state=None):
+    def process_input(self, X, last_read_vectors, state=None, t=None):
         """
         processes input data through the controller network and returns the
         pre-output and interface_vector
@@ -190,23 +190,23 @@ class BaseController:
         nn_output, nn_state = None, None
 
         if self.has_recurrent_nn:
-            nn_output, nn_state = self.network_op(complete_input, state)
+            nn_output, nn_state = self.network_op(complete_input, state, t=t)
         else:
-            nn_output = self.network_op(complete_input)
+            nn_output = self.network_op(complete_input, t=t)
 
         pre_output = tf.matmul(nn_output, self.nn_output_weights)
         interface = tf.matmul(nn_output, self.interface_weights)
         parsed_interface = self.parse_interface_vector(interface)
 
         if self.has_recurrent_nn:
-            return pre_output, parsed_interface, nn_state
+            return pre_output, nn_output, parsed_interface, nn_state
         else:
-            return pre_output, parsed_interface
+            return pre_output, nn_output, parsed_interface
 
 
-    def final_output(self, pre_output, new_read_vectors):
+    def final_output(self, pre_output, nn_output, new_read_vectors, t=None):
         """
-        returns the final output by taking rececnt memory changes into account
+        returns the final output by taking recent memory changes into account
 
         Parameters:
         ----------
@@ -214,6 +214,7 @@ class BaseController:
             the ouput vector from the input processing step
         new_read_vectors: Tensor (batch_size, words_size, read_heads)
             the newly read vectors from the updated memory
+        t - timestep
 
         Returns: Tensor (batch_size, output_size)
         """

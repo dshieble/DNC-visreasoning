@@ -11,7 +11,7 @@ NOTE - LARGER BATCH SIZE (at least 10) IMPROVES convergence for this controller
 
 class BasicRecurrentController(BaseController):
 
-    def network_vars(self, batch_size):
+    def network_vars(self, batch_size, **kwargs):
         initial_std = lambda in_nodes: np.min(1e-2, np.sqrt(2.0 / in_nodes))
         input_ = self.nn_input_size
 

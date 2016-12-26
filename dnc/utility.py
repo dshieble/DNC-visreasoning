@@ -128,6 +128,45 @@ def get_lrb_images(bsize, size=8, splits=2):
     return np.array(Xstag), np.array(X), np.array(y)
 
 
+
+def get_center_bar_images(bsize, size=8, splits=2, stagger=True):
+    X = []
+    Xstag = []
+    y = []
+    for i in range(bsize):
+        pos = np.random.random() < 0.5
+        im = np.zeros((size,size))
+        if pos:
+            im[size/8:7*(size/8), size/2-1:size/2+1] = 1
+        if stagger:
+            Xstag.append(get_staggered_im(im, size, splits))
+        else:
+            Xstag.append([np.ravel(im) for i in range(splits**2)])
+        X.append(im)
+        label = np.zeros(2)
+        label[pos] = 1
+        y.append(label)
+    return np.array(Xstag), np.array(X), np.array(y)
+
+def get_right_bar_images(bsize, size=8, splits=2, stagger=True):
+    X = []
+    Xstag = []
+    y = []
+    for i in range(bsize):
+        pos = np.random.random() < 0.5
+        im = np.zeros((size,size))
+        if pos:
+            im[size/8:7*(size/8), size-1:size] = 1
+        if stagger:
+            Xstag.append(get_staggered_im(im, size, splits))
+        else:
+            Xstag.append([np.ravel(im) for i in range(splits**2)])
+        X.append(im)
+        label = np.zeros(2)
+        label[pos] = 1
+        y.append(label)
+    return np.array(Xstag), np.array(X), np.array(y)
+
 def binary_cross_entropy(predictions, targets):
 
     return tf.reduce_mean(
@@ -144,14 +183,16 @@ def get_im_sequence(batch_x, batch_y):
                    (-1, 16, 49))
     return X, batch_y
 
-def 
-    #TODO: Take argmax window vector rather than indexing directly 
-
 
 def window_vector(X, ind_1, ind_2, window_size=3):
-    #TODO: Implement wrapping instead of maximum
-    return X[:, tf.maximum(0, ind_1):tf.minimum(ind_1 + window_size, tf.shape(X)[1]), 
-                tf.maximum(0, ind_2):tf.minimum(ind_2 + window_size, tf.shape(X)[1])]    
+    # Returns the window of the vector, wrapped around
+    height = tf.shape(X)[1]
+    width  = tf.shape(X)[2]
+    return X[:, tf.mod(ind_1, height):tf.mod(ind_1 + window_size, height), 
+                tf.mod(ind_2, width):tf.mod(ind_2 + window_size, width)]    
+    # return X[:, tf.maximum(0, ind_1):tf.minimum(ind_1 + window_size, tf.shape(X)[1]), 
+    #             tf.maximum(0, ind_2):tf.minimum(ind_2 + window_size, tf.shape(X)[1])]    
+
 
 
 def get_updt(loss, learning_rate=1e-4, momentum=0.9, clip=10):

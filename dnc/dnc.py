@@ -39,7 +39,8 @@ class DNC:
         self.batch_size = batch_size
 
         self.memory = Memory(self.words_num, self.word_size, self.read_heads, self.batch_size)
-        self.controller = controller_class(self.input_size, self.output_size, self.read_heads, self.word_size, self.batch_size)
+        self.controller = controller_class(self.input_size, self.output_size, self.read_heads, 
+                                           self.word_size, self.max_sequence_length, batch_size=self.batch_size)
 
         # input data placeholders
         self.input_data = tf.placeholder(tf.float32, [batch_size, None, input_size], name='input')
@@ -53,7 +54,7 @@ class DNC:
         self.build_graph()
 
 
-    def _step_op(self, step, controller_state=None):
+    def _step_op(self, step, controller_state=None, t=None):
         """
         performs a step operation on the input step data
 
@@ -71,9 +72,9 @@ class DNC:
         pre_output, interface, nn_state = None, None, None
 
         if self.controller.has_recurrent_nn:
-            pre_output, interface, nn_state = self.controller.process_input(step, last_read_vectors, controller_state)
+            pre_output, nn_output, interface, nn_state = self.controller.process_input(step, last_read_vectors, controller_state, t=t)
         else:
-            pre_output, interface = self.controller.process_input(step, last_read_vectors)
+            pre_output, nn_output, interface = self.controller.process_input(step, last_read_vectors, t=t)
 
         usage_vector, write_weighting, memory_matrix, link_matrix, precedence_vector = self.memory.write(
             interface['write_key'],
@@ -104,7 +105,7 @@ class DNC:
             read_weightings,
             read_vectors,
 
-            self.controller.final_output(pre_output, read_vectors),
+            self.controller.final_output(pre_output, nn_output, read_vectors, t=t),
             interface['free_gates'],
             interface['allocation_gate'],
             interface['write_gate'],
@@ -168,12 +169,13 @@ class DNC:
         with tf.variable_scope("sequence_loop") as scope:
             for t, step in enumerate(tqdm(time_steps)):
                 with tf.control_dependencies(dependencies):
-                    output_list = tf.cond(t < self.sequence_length,
-                        # if step is within the sequence_length, perform regualr operations
-                        lambda: self._step_op(step, controller_state),
-                        # otherwise: perform dummy operation
-                        lambda: self._dummy_op(controller_state)
-                    )
+                    output_list = self._step_op(step, controller_state=controller_state, t=t)
+                    # output_list = tf.cond(t < self.sequence_length,
+                    #     # if step is within the sequence_length, perform regualr operations
+                    #     lambda: self._step_op(step, controller_state=controller_state, t=t),
+                    #     # otherwise: perform dummy operation
+                    #     lambda: self._dummy_op(controller_state)
+                    # )
 
                     scope.reuse_variables()
 
