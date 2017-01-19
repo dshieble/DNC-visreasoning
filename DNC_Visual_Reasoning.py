@@ -36,8 +36,8 @@ if not sess is None:
     sess.close()
 
 task = "sd" 
-num_iter = 10000
-bsize = 1
+num_iter = 100000
+bsize = 10
 input_side = 24
 input_size = input_side**2
 splits = 4
@@ -120,4 +120,4 @@ for i in tqdm(range(num_iter)):
         print "loss", np.mean(losses[-print_step:])
         print "matches", np.mean(np.array(targets[-print_step:]) == np.array(outputs[-print_step:]))
 
-
+ncomputer.save(sess, "ckpts", "recurrent_controller_get_sd_img_task.ckpt")

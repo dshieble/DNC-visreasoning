@@ -205,7 +205,7 @@ def get_sd_images(bsize, size, splits, stagger, half_max_item, offset ):
        X.append(im)
        y.append(label)
 
-       return np.array(Xstag), np.array(X), np.array(y)
+   return np.array(Xstag), np.array(X), np.array(y)
 
 def binary_cross_entropy(predictions, targets):
 
