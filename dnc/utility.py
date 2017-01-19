@@ -170,7 +170,7 @@ def get_right_bar_images(bsize, size=8, splits=2, stagger=True):
         y.append(label)
     return np.array(Xstag), np.array(X), np.array(y)
 
-def get_sd_images(bsize, size, splits, stagger, half_max_item, offset ):
+def get_sd_images(bsize, size, splits, stagger, half_max_item ):
 
    # Makes same/different images
    # Images have two square bit patterns of side size
@@ -184,16 +184,22 @@ def get_sd_images(bsize, size, splits, stagger, half_max_item, offset ):
    for i in range(bsize):
 
        s_or_d = np.random.uniform() < .5
-       half_item = np.ceil(np.random.uniform(0,half_max_item))
+       s_or_d *=1
+       half_item = np.random.randint(0,half_max_item)
        label[s_or_d] = 1
        im = np.zeros((size, size))
+
+       vert_1 = np.random.randint(0,size-2*half_item + 1)
+       vert_2 = np.random.randint(0,size-2*half_item + 1)
+
+       offset = np.random.randint(half_item + 1, .5*size - half_item + 1)
 
        bit_p1 = np.round(np.random.uniform(0,1,size=(2*half_item, 2*half_item)))
        bit_p2 = np.round(np.random.uniform(0,1,size=(2*half_item, 2*half_item)))
      
-       im[.5*size - half_item:.5*size + half_item, \
+       im[vert_1: vert_1 + 2* half_item, \
           .5*size - half_item - offset:.5*size + half_item - offset] = bit_p1
-       im[.5*size - half_item :.5*size + half_item,\
+       im[vert_2 : vert_2 + 2* half_item,\
           .5*size + offset -  half_item : .5*size + offset + half_item] = bit_p1*s_or_d + \
        bit_p2*s_or_d
        

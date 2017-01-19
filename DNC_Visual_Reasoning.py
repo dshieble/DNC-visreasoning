@@ -29,14 +29,14 @@ def make_ims(kind, size=8, splits=4):
         Input, _, Target_Output = uf.get_right_bar_images(bsize, size=size, splits=splits, stagger=False)
     elif kind == "sd":
         Input,_, Target_Output = uf.get_sd_images(bsize, size=size, splits=splits,
-        stagger=False,half_max_item=half_max_item, offset=offset)
+        stagger=False,half_max_item=half_max_item)
     return Input, Target_Output
 
 if not sess is None:
     sess.close()
 
 task = "sd" 
-num_iter = 100000
+num_iter = 15000
 bsize = 10
 input_side = 24
 input_size = input_side**2
@@ -46,7 +46,6 @@ sequence_length = 16
 
 # SD parameters
 half_max_item = 3
-offset = 6
 tf.reset_default_graph()
 sess = tf.InteractiveSession(config=tf.ConfigProto(allow_soft_placement=True))
 
