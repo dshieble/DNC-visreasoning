@@ -2,6 +2,9 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.python.ops import gen_state_ops
 from tqdm import tqdm
+import ipdb
+import itertools
+
 def pairwise_add(u, v=None, is_batch=False):
     """
     performs a pairwise summation between vectors (possibly the same)
@@ -167,6 +170,43 @@ def get_right_bar_images(bsize, size=8, splits=2, stagger=True):
         y.append(label)
     return np.array(Xstag), np.array(X), np.array(y)
 
+def get_sd_images(bsize, size, splits, stagger, half_max_item, offset ):
+
+   # Makes same/different images
+   # Images have two square bit patterns of side size
+   # Bit patterns are placed about the image's vertical bisector
+   # If s_or_d = s, then both are the same; if = d, then different
+   X = []
+   Xstag = []
+   y = []
+   label = np.array([0,0])
+
+   for i in range(bsize):
+
+       s_or_d = np.random.uniform() < .5
+       half_item = np.ceil(np.random.uniform(0,half_max_item))
+       label[s_or_d] = 1
+       im = np.zeros((size, size))
+
+       bit_p1 = np.round(np.random.uniform(0,1,size=(2*half_item, 2*half_item)))
+       bit_p2 = np.round(np.random.uniform(0,1,size=(2*half_item, 2*half_item)))
+     
+       im[.5*size - half_item:.5*size + half_item, \
+          .5*size - half_item - offset:.5*size + half_item - offset] = bit_p1
+       im[.5*size - half_item :.5*size + half_item,\
+          .5*size + offset -  half_item : .5*size + offset + half_item] = bit_p1*s_or_d + \
+       bit_p2*s_or_d
+       
+       if stagger:
+           Xstag.append(get_staggered_im(im,size,splits))
+       else:
+           Xstag.append([np.ravel(im) for i in range(splits**2)])
+       
+       X.append(im)
+       y.append(label)
+
+       return np.array(Xstag), np.array(X), np.array(y)
+
 def binary_cross_entropy(predictions, targets):
 
     return tf.reduce_mean(
@@ -184,16 +224,46 @@ def get_im_sequence(batch_x, batch_y):
     return X, batch_y
 
 
-def window_vector(X, ind_1, ind_2, window_size=3):
+#def window_vector(X, ind_1, ind_2, window_size):
     # Returns the window of the vector, wrapped around
-    height = tf.shape(X)[1]
-    width  = tf.shape(X)[2]
-    return X[:, tf.mod(ind_1, height):tf.mod(ind_1 + window_size, height), 
-                tf.mod(ind_2, width):tf.mod(ind_2 + window_size, width)]    
+#   height = tf.shape(X)[1]
+#   width  = tf.shape(X)[2]
+    
+#    window = tf.ones([window_size,window_size])
+     
+#   pad_top = tf.zeros([ind_1, width])
+#   pad_bot = tf.zeros([tf.maximum(tf.subtract(height,tf.add(ind_1,window_size)),0),wi
+
+#    pad_top = tf.zeros([ind_1, tf.shape(pad_r)[1]])
+#    pad_bot = tf.zeros([tf.subtract(height,tf.minimum(tf.add(ind_1,window_size),tf.subtract(height,ind_1))),tf.shape(pad_r)[1]])
+    
+#   tmp_mask = tf.concat(1,[pad_l,window])
+#   tmp_mask = tf.concat(1,[tmp_mask,pad_r])
+#   tmp_mask = tf.concat(0,[pad_top,tmp_mask])
+#    mask = tf.expand_dims(tf.concat(0,[tmp_mask,pad_bot]),0)
+
+
+#   return X[:, tf.mod(ind_1, height):tf.mod(ind_1 + window_size, height), 
+#               tf.mod(ind_2, width):tf.mod(ind_2 + window_size, width)]    
     # return X[:, tf.maximum(0, ind_1):tf.minimum(ind_1 + window_size, tf.shape(X)[1]), 
     #             tf.maximum(0, ind_2):tf.minimum(ind_2 + window_size, tf.shape(X)[1])]    
+#   return tf.multiply(mask,X)
 
 
+def mk_mask(X,row_v,col_v):
+#    import ipdb
+#    ipdb.set_trace()
+    num_row = tf.shape(X)[0]
+    num_col = tf.shape(X)[1] 
+    
+    tmp_row = tf.tile(tf.expand_dims(row_v,1), [1,num_col])
+    tmp_col = tf.tile(tf.expand_dims(col_v,0), [num_row,1])
+    
+    mask = tf.multiply(tmp_row,tmp_col)
+    masked_X = tf.multiply(X,mask)
+    
+
+    return masked_X
 
 def get_updt(loss, learning_rate=1e-4, momentum=0.9, clip=10):
     opt_func = tf.train.AdamOptimizer(1e-6)
