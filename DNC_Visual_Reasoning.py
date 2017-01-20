@@ -35,6 +35,9 @@ def make_ims(kind, size=8, splits=4):
 if not sess is None:
     sess.close()
 
+#Remove logging  from previous training runs
+os.system("rm /media/data_cifs/DNC_Visual_Reasoning_Results_Logs/*.npy")
+    
 task = "sd" 
 num_iter = 15000
 bsize = 10
@@ -43,80 +46,85 @@ input_size = input_side**2
 splits = 4
 num_labels = 2
 sequence_length = 16
-
+device = "/cpu:0"
 # SD parameters
 half_max_item = 3
 tf.reset_default_graph()
-sess = tf.InteractiveSession(config=tf.ConfigProto(allow_soft_placement=True))
+with tf.device(device):
+    sess = tf.InteractiveSession(config=tf.ConfigProto(allow_soft_placement=True))
 
-ncomputer = DNC(
-    FocusRecurrentController,
-    input_size=input_size,
-    output_size=num_labels,
-    max_sequence_length=sequence_length,
-    memory_words_num=10,
-    memory_word_size=10,
-    memory_read_heads=1,
-    batch_size=bsize
-)
-assert ncomputer.controller.has_recurrent_nn
+    ncomputer = DNC(
+        FocusRecurrentController,
+        input_size=input_size,
+        output_size=num_labels,
+        max_sequence_length=sequence_length,
+        memory_words_num=10,
+        memory_word_size=10,
+        memory_read_heads=1,
+        batch_size=bsize
+    )
+    assert ncomputer.controller.has_recurrent_nn
 
-raw_outputs, memory_views = ncomputer.get_outputs()
-output = tf.argmax(raw_outputs[:, sequence_length - 1, :], 1)
-loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(raw_outputs[:, sequence_length - 1, :], 
-                                                              ncomputer.target_output_final))
+    raw_outputs, memory_views = ncomputer.get_outputs()
+    output = tf.argmax(raw_outputs[:, sequence_length - 1, :], 1)
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(raw_outputs[:, sequence_length - 1, :], 
+                                                                  ncomputer.target_output_final))
 
-start = time.time()
-updt = uf.get_updt(loss)
-print time.time() - start
+    start = time.time()
+    updt = uf.get_updt(loss)
+    print time.time() - start
 
-init = tf.global_variables_initializer()
-print "initializing..."
-sess.run(init)
-print "initialized!"
+    init = tf.global_variables_initializer()
+    print "initializing..."
+    sess.run(init)
+    print "initialized!"
 
-print_step = 200
-losses = []
-inputs = []
-outputs = []
-targets = []
-views = []
-raw_focuses_row = []
-raw_focuses_col = []
-focuses = []
+    print_step = 4000
+    losses = []
+    inputs = []
+    outputs = []
+    targets = []
+    views = []
+    raw_focuses_row = []
+    raw_focuses_col = []
+    focuses = []
 
-for i in tqdm(range(num_iter)):
-    
-    Input, Target_Output = make_ims(task,input_side,splits)
-   
-    OUT = sess.run([
-        loss,
-        output,
-        memory_views,
-        updt] + 
-        ncomputer.controller.focus_row +
-        ncomputer.controller.focus_col
-        , feed_dict={
-        ncomputer.input_data: Input,
-        ncomputer.target_output_final: Target_Output,
-        ncomputer.sequence_length: sequence_length
-    })
-    l, o, v = OUT[:3]
-    fr = OUT[4:4+len(ncomputer.controller.focus_row)]
-    fc = OUT[4+len(ncomputer.controller.focus_row):]
-    pairs = zip(np.argmax(np.array(fr)[:,0,:], -1), np.argmax(np.array(fr)[:,0,:], -1))
+    for i in tqdm(range(num_iter)):
 
-    #TODO: retrieve scope for visualization
-    losses.append(l)
-    inputs.append(Input)
-    outputs += list(o)
-    views.append(v)
-    targets += list(np.argmax(Target_Output, axis=-1))
-    raw_focuses_row.append(np.array(fc)[:,0,:])
-    raw_focuses_col.append(np.array(fc)[:,0,:])
-    focuses.append(pairs)
-    if len(targets) % print_step == 0 and len(targets) > 0:
-        print "loss", np.mean(losses[-print_step:])
-        print "matches", np.mean(np.array(targets[-print_step:]) == np.array(outputs[-print_step:]))
+        Input, Target_Output = make_ims(task,input_side,splits)
 
-ncomputer.save(sess, "ckpts", "recurrent_controller_get_sd_img_task.ckpt")
+        OUT = sess.run([
+            loss,
+            output,
+            memory_views,
+            updt] + 
+            ncomputer.controller.focus_row +
+            ncomputer.controller.focus_col
+            , feed_dict={
+            ncomputer.input_data: Input,
+            ncomputer.target_output_final: Target_Output,
+            ncomputer.sequence_length: sequence_length
+        })
+        l, o, v = OUT[:3]
+        fr = OUT[4:4+len(ncomputer.controller.focus_row)]
+        fc = OUT[4+len(ncomputer.controller.focus_row):]
+        pairs = zip(np.argmax(np.array(fr)[:,0,:], -1), np.argmax(np.array(fr)[:,0,:], -1))
+
+        #TODO: retrieve scope for visualization
+        losses.append(l)
+        inputs.append(Input)
+        outputs += list(o)
+        views.append(v)
+        targets += list(np.argmax(Target_Output, axis=-1))
+        raw_focuses_row.append(np.array(fc)[:,0,:])
+        raw_focuses_col.append(np.array(fc)[:,0,:])
+        focuses.append(pairs)
+        if len(targets) % print_step == 0 and len(targets) > 0:
+            print "loss", np.mean(losses[-print_step:])
+            print "matches", np.mean(np.array(targets[-print_step:]) == np.array(outputs[-print_step:]))
+            print "saving logging for {}".format(i)
+            np.save("/media/data_cifs/DNC_Visual_Reasoning_Results_Logs/targets_{}.npy".format(i), targets[-100:])
+            np.save("/media/data_cifs/DNC_Visual_Reasoning_Results_Logs/inputs_{}.npy".format(i), inputs[-100:])
+            np.save("/media/data_cifs/DNC_Visual_Reasoning_Results_Logs/raw_focuses_row_{}.npy".format(i), raw_focuses_row[-100:])
+            np.save("/media/data_cifs/DNC_Visual_Reasoning_Results_Logs/raw_focuses_col_{}.npy".format(i), raw_focuses_col[-100:])
+    ncomputer.save(sess, "ckpts", "recurrent_controller_get_sd_img_task.ckpt")

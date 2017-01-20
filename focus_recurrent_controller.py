@@ -3,7 +3,6 @@ import tensorflow as tf
 from dnc.controller import BaseController
 from tensorflow.python.ops import rnn_cell
 import dnc.utility as uf
-import ipdb
 """
 A recurrent controller that uses a focus window on the input at each time step
 

@@ -2,7 +2,6 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.python.ops import gen_state_ops
 from tqdm import tqdm
-import ipdb
 import itertools
 
 def pairwise_add(u, v=None, is_batch=False):
