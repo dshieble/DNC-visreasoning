@@ -19,21 +19,20 @@ os.system("rm {}/*.npy".format(cifs_path))
 
 #Parameters of the task and the training
 params = {}
-params["timestamp"] = str(int(time.time()))
-params["task"] = "lrb" 
-params["num_iter"] = 15000
-params["bsize"] = 10
-params["input_side"] = 24
-params["input_size"] = params["input_side"]**2
-params["splits"] = 4
-params["num_labels"] = 2
-params["sequence_length"] = 16
-params["half_max_item"] = 3
-params["memory_words_num"] = 10
-params["memory_word_size"] = 10
-params["memory_read_heads"] = 1
-params["print_step"] = 500
-params["save_step"] = 4000
+params["timestamp"] = str(int(time.time())) #the  identifier for this test run
+params["task"] = "mask" #specify the task
+params["num_iter"] = 15000 #the number of batches to run
+params["bsize"] = 10 #the back size
+params["input_side"] = 24 #the length of each side of each image
+params["input_size"] = params["input_side"]**2 #the number of pixels
+params["num_labels"] = 2 #the number of labels
+params["sequence_length"] = 16 #the number of images in the sequence
+params["half_max_item"] = 3 #parameter for sd task
+params["memory_words_num"] = 10 #the number of memory words
+params["memory_word_size"] = 10#the size of memory words
+params["memory_read_heads"] = 1 #the number of read heads
+params["print_step"] = 500 #the number of steps between each loss printintg
+params["save_step"] = 4000 # the number of steps between each save
 
 params["device"] = "/cpu:0" #Set this to /gpu:0 or /gpu:1 etc if you want to use the gpu instead
 params["focus_type"] = "mask"
