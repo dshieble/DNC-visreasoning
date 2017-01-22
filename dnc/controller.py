@@ -1,9 +1,9 @@
 import tensorflow as tf
 import numpy as np
 
-class BaseController:
+class BaseController(object):
 
-    def __init__(self, input_size, output_size, memory_read_heads, memory_word_size, max_sequence_length, batch_size=1):
+    def __init__(self, input_size, output_size, memory_read_heads, memory_word_size, sequence_length, batch_size=1):
         """
         constructs a controller as described in the DNC paper:
         http://www.nature.com/nature/journal/vaop/ncurrent/full/nature20101.html
@@ -27,7 +27,7 @@ class BaseController:
         self.read_heads = memory_read_heads
         self.word_size = memory_word_size
         self.batch_size = batch_size
-        self.max_sequence_length = max_sequence_length
+        self.sequence_length = sequence_length
         # indicates if the internal neural network is recurrent
         # by the existence of recurrent_update and get_state methods
         has_recurrent_update = callable(getattr(self, 'update_state', None))

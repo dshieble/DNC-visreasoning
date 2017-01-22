@@ -62,50 +62,50 @@ def decaying_softmax(shape, axis):
     return container + np.reshape(weights_vector, broadcastable_shape)
 
 
-def get_staggered_im(im, size, splits, use_ravel=True):
+def get_staggered_im(im, sequence_length, size, use_ravel=True):
+    assert sequence_length == int(np.sqrt(sequence_length))**2
     stag = []
-    for j in range(splits):
-        for k in range(splits):
+    for j in range(int(np.sqrt(sequence_length))):
+        for k in range(int(np.sqrt(sequence_length))):
             s = im[j*(size/splits):(j+1)*(size/splits), k*(size/splits):(k+1)*(size/splits)]
             stag.append(s if not use_ravel else s.ravel())
     return stag 
 
-def get_images_dumb(bsize, size=4, splits=2):
-    X = []
-    Xstag = []
-    y = []
-    for i in range(bsize):
-        pos = np.random.random() < 0.5
-        im = np.zeros((size,size)) if pos else np.ones((size,size))
-        Xstag.append(get_staggered_im(im, size, splits))
-        X.append(im)
-        label = np.zeros(2)
-        label[pos] = 1
-        y.append(label)
-    return np.array(Xstag), np.array(X), np.array(y)
+# def get_images_dumb(bsize, size=4, splits=2):
+#     X = []
+#     Xstag = []
+#     y = []
+#     for i in range(bsize):
+#         pos = np.random.random() < 0.5
+#         im = np.zeros((size,size)) if pos else np.ones((size,size))
+#         Xstag.append(get_staggered_im(im, size, splits))
+#         X.append(im)
+#         label = np.zeros(2)
+#         label[pos] = 1
+#         y.append(label)
+#     return np.array(Xstag), np.array(X), np.array(y)
 
-def get_rectangle_images_size(bsize, size=8, splits=2):
-    X = []
-    Xstag = []
-    y = []
-    for i in range(bsize):
-        pos = np.random.random() < 0.5
-        im = np.zeros((size,size))
-        if pos:
-            im[1:size-1, 1:size-1] = 1
-        else:
-            im[size/2-1:size/2+1, size/2-1:size/2+1] = 1
+# def get_rectangle_images_size(bsize, size=8, splits=2):
+#     X = []
+#     Xstag = []
+#     y = []
+#     for i in range(bsize):
+#         pos = np.random.random() < 0.5
+#         im = np.zeros((size,size))
+#         if pos:
+#             im[1:size-1, 1:size-1] = 1
+#         else:
+#             im[size/2-1:size/2+1, size/2-1:size/2+1] = 1
         
-        Xstag.append(get_staggered_im(im, size, splits))
-        X.append(im)
-        label = np.zeros(2)
-        label[pos] = 1
-        y.append(label)
-    return np.array(Xstag), np.array(X), np.array(y)
+#         Xstag.append(get_staggered_im(im, size, splits))
+#         X.append(im)
+#         label = np.zeros(2)
+#         label[pos] = 1
+#         y.append(label)
+#     return np.array(Xstag), np.array(X), np.array(y)
 
-def get_lrb_images(bsize, size=8, splits=2):
+def get_lrb_images(size, bsize, sequence_length):
     X = []
-    Xstag = []
     y = []
     for i in range(bsize):
         im = np.zeros((size,size))
@@ -113,104 +113,106 @@ def get_lrb_images(bsize, size=8, splits=2):
         if num <= 0.25:
             l = 0
         if num > 0.25 and num <= 0.5:
-            l = 1
+            l = 0
             im[1:size-1,1:2] = 1
         elif num > 0.5 and num <= 0.75:
-            l = 2
+            l = 0
             im[1:size-1,-2:-1] = 1
         elif num > 0.75:
-            l = 3
+            l = 1
             im[1:size-1,1:2] = 1
             im[1:size-1,-2:-1] = 1
-        Xstag.append(get_staggered_im(im, size, splits))
-        X.append(im)
-        label = np.zeros(4)
+        X.append([np.ravel(im) for i in range(sequence_length)])
+        label = np.zeros(2)
         label[l] = 1
         y.append(label)
-    return np.array(Xstag), np.array(X), np.array(y)
+    return np.array(X), np.array(y)
 
 
 
-def get_center_bar_images(bsize, size=8, splits=2, stagger=True):
+def get_center_bar_images(size, bsize, sequence_length):
     X = []
-    Xstag = []
     y = []
     for i in range(bsize):
         pos = np.random.random() < 0.5
         im = np.zeros((size,size))
         if pos:
             im[size/8:7*(size/8), size/2-1:size/2+1] = 1
-        if stagger:
-            Xstag.append(get_staggered_im(im, size, splits))
-        else:
-            Xstag.append([np.ravel(im) for i in range(splits**2)])
-        X.append(im)
+        X.append([np.ravel(im) for i in range(sequence_length)])
         label = np.zeros(2)
         label[pos] = 1
         y.append(label)
-    return np.array(Xstag), np.array(X), np.array(y)
+    return np.array(X), np.array(y)
 
-def get_right_bar_images(bsize, size=8, splits=2, stagger=True):
+def get_right_bar_images(size, bsize, sequence_length):
     X = []
-    Xstag = []
     y = []
     for i in range(bsize):
         pos = np.random.random() < 0.5
         im = np.zeros((size,size))
         if pos:
             im[size/8:7*(size/8), size-1:size] = 1
-        if stagger:
-            Xstag.append(get_staggered_im(im, size, splits))
-        else:
-            Xstag.append([np.ravel(im) for i in range(splits**2)])
-        X.append(im)
+        X.append([np.ravel(im) for i in range(sequence_length)])
         label = np.zeros(2)
         label[pos] = 1
         y.append(label)
-    return np.array(Xstag), np.array(X), np.array(y)
+    return np.array(X), np.array(y)
 
-def get_sd_images(bsize, size, splits, stagger, half_max_item ):
+def get_sd_images(size, bsize, sequence_length, half_max_item ):
 
-   # Makes same/different images
-   # Images have two square bit patterns of side size
-   # Bit patterns are placed about the image's vertical bisector
-   # If s_or_d = s, then both are the same; if = d, then different
-   X = []
-   Xstag = []
-   y = []
-   label = np.array([0,0])
+    # Makes same/different images
+    # Images have two square bit patterns of side size
+    # Bit patterns are placed about the image's vertical bisector
+    # If s_or_d = s, then both are the same; if = d, then different
+    X = []
+    y = []
 
-   for i in range(bsize):
+    for i in range(bsize):
+        label = np.array([0,0])
+        s_or_d = np.random.uniform() < .5
+        s_or_d *=1
+        half_item = np.random.randint(1,half_max_item)
+        label[s_or_d] = 1
+        im = np.zeros((size, size))
 
-       s_or_d = np.random.uniform() < .5
-       s_or_d *=1
-       half_item = np.random.randint(0,half_max_item)
-       label[s_or_d] = 1
-       im = np.zeros((size, size))
+        vert_1 = np.random.randint(0,size-2*half_item + 1)
+        vert_2 = np.random.randint(0,size-2*half_item + 1)
 
-       vert_1 = np.random.randint(0,size-2*half_item + 1)
-       vert_2 = np.random.randint(0,size-2*half_item + 1)
+        offset = np.random.randint(half_item + 1, .5*size - half_item + 1)
 
-       offset = np.random.randint(half_item + 1, .5*size - half_item + 1)
+        bit_p1 = np.round(np.random.uniform(0,1,size=(2*half_item, 2*half_item)))
+        bit_p2 = np.round(np.random.uniform(0,1,size=(2*half_item, 2*half_item)))
 
-       bit_p1 = np.round(np.random.uniform(0,1,size=(2*half_item, 2*half_item)))
-       bit_p2 = np.round(np.random.uniform(0,1,size=(2*half_item, 2*half_item)))
-     
-       im[vert_1: vert_1 + 2* half_item, \
-          .5*size - half_item - offset:.5*size + half_item - offset] = bit_p1
-       im[vert_2 : vert_2 + 2* half_item,\
-          .5*size + offset -  half_item : .5*size + offset + half_item] = bit_p1*s_or_d + \
-       bit_p2*s_or_d
-       
-       if stagger:
-           Xstag.append(get_staggered_im(im,size,splits))
-       else:
-           Xstag.append([np.ravel(im) for i in range(splits**2)])
-       
-       X.append(im)
-       y.append(label)
+        im[vert_1: vert_1 + 2* half_item, \
+           .5*size - half_item - offset:.5*size + half_item - offset] = bit_p1
+        im[vert_2 : vert_2 + 2* half_item ,\
+           .5*size + offset -  half_item : .5*size + offset + half_item] = bit_p1*(1-s_or_d) + \
+        bit_p2*s_or_d
 
-   return np.array(Xstag), np.array(X), np.array(y)
+        X.append([np.ravel(im) for i in range(sequence_length)])
+
+        y.append(label)
+    return np.array(X), np.array(y)
+
+def make_ims(params):
+    if params["task"] == "center":
+        Input, Target_Output = get_center_bar_images(size=params["input_side"], 
+                                                        bsize=params["bsize"], sequence_length=params["sequence_length"])
+    elif params["task"] == "right":
+        Input, Target_Output = get_right_bar_images(size=params["input_side"], 
+                                                       bsize=params["bsize"], sequence_length=params["sequence_length"])
+    elif params["task"] == "sd":
+        Input, Target_Output = get_sd_images(size=params["input_side"], 
+                                               bsize=params["bsize"], 
+                                               sequence_length=params["sequence_length"],
+                                               half_max_item=params["half_max_item"])
+    elif params["task"] == "lrb":
+        Input, Target_Output = get_lrb_images(size=params["input_side"], 
+                                                       bsize=params["bsize"], sequence_length=params["sequence_length"])
+        
+    Target_Output = np.hstack([np.expand_dims(Target_Output, 1) for i in range(Input.shape[1])])
+    return Input, Target_Output
+
 
 def binary_cross_entropy(predictions, targets):
 
@@ -255,17 +257,22 @@ def get_im_sequence(batch_x, batch_y):
 #   return tf.multiply(mask,X)
 
 
-def mk_mask(X,row_v,col_v):
+def apply_mask(X, row_v, col_v, f_mask, focus_range, focus_type):
 #    import ipdb
 #    ipdb.set_trace()
-    num_row = tf.shape(X)[0]
-    num_col = tf.shape(X)[1] 
-    
-    tmp_row = tf.tile(tf.expand_dims(row_v,1), [1,num_col])
-    tmp_col = tf.tile(tf.expand_dims(col_v,0), [num_row,1])
-    
-    mask = tf.multiply(tmp_row,tmp_col)
-    masked_X = tf.multiply(X,mask)
+    if focus_type == "rowcol":
+        num_row = tf.shape(X)[0]
+        num_col = tf.shape(X)[1] 
+
+        tmp_row = tf.tile(tf.expand_dims(row_v,1), [1,num_col])
+        tmp_col = tf.tile(tf.expand_dims(col_v,0), [num_row,1])
+
+        mask = tf.multiply(tmp_row,tmp_col)
+    elif focus_type == "mask":
+        mask =  tf.reshape(f_mask, (-1, focus_range, focus_range)) 
+    else:
+        assert False, ("{} is not a valid focus type".format(self.focus_type)) 
+    masked_X = tf.multiply(X, mask)
     
 
     return masked_X

@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import utility
 
-class Memory:
+class Memory(object):
 
     def __init__(self, words_num=256, word_size=64, read_heads=4, batch_size=1):
         """

@@ -2,9 +2,9 @@ import tensorflow as tf
 from memory import Memory
 import os
 from tqdm import tqdm
-class DNC:
+class DNC(object):
 
-    def __init__(self, controller_class, input_size, output_size, max_sequence_length,
+    def __init__(self, controller_class, input_size, output_size, sequence_length, controller_params, 
                  memory_words_num = 256, memory_word_size = 64, memory_read_heads = 4, batch_size = 1):
         """
         constructs a complete DNC architecture as described in the DNC paper
@@ -18,7 +18,7 @@ class DNC:
             the size of the input vector
         output_size: int
             the size of the output vector
-        max_sequence_length: int
+        sequence_length: int
             the maximum length of an input sequence
         memory_words_num: int
             the number of words that can be stored in memory
@@ -32,7 +32,7 @@ class DNC:
 
         self.input_size = input_size
         self.output_size = output_size
-        self.max_sequence_length = max_sequence_length
+        self.sequence_length = sequence_length
         self.words_num = memory_words_num
         self.word_size = memory_word_size
         self.read_heads = memory_read_heads
@@ -40,16 +40,17 @@ class DNC:
 
         self.memory = Memory(self.words_num, self.word_size, self.read_heads, self.batch_size)
         self.controller = controller_class(self.input_size, self.output_size, self.read_heads, 
-                                           self.word_size, self.max_sequence_length, batch_size=self.batch_size)
+                                           self.word_size, self.sequence_length, batch_size=self.batch_size,
+                                           **controller_params)
 
         # input data placeholders
-        self.input_data = tf.placeholder(tf.float32, [batch_size, None, input_size], name='input')
-        self.target_output = tf.placeholder(tf.float32, [batch_size, None, output_size], name='targets')
+        self.input_data = tf.placeholder(tf.float32, [batch_size, sequence_length, input_size], name='input')
+        self.target_output = tf.placeholder(tf.float32, [batch_size, sequence_length, output_size], name='targets')
         self.target_output_final = tf.placeholder(tf.float32, [batch_size, output_size], name='final_target')
         
-        self.sequence_length = tf.placeholder(tf.int32, name='sequence_length')
+        # self.sequence_length = tf.placeholder(tf.int32, name='sequence_length')
 
-        self.input_padding = tf.zeros([batch_size, max_sequence_length, input_size])
+        self.input_padding = tf.zeros([batch_size, sequence_length, input_size])
            
         self.build_graph()
 
@@ -153,7 +154,7 @@ class DNC:
         padding = tf.slice(self.input_padding, [0, self.sequence_length, 0], [-1, -1, -1])
         data = tf.concat(1, [self.input_data, padding])
 
-        time_steps = tf.unpack(data, num=self.max_sequence_length, axis=1)
+        time_steps = tf.unpack(data, num=self.sequence_length, axis=1)
 
         outputs = []
         free_gates = []
@@ -262,3 +263,20 @@ class DNC:
             the name of the checkpoint subdirectory
         """
         tf.train.Saver(tf.trainable_variables()).restore(session, os.path.join(ckpts_dir, name, 'model.ckpt'))
+        
+    def get_final_loss(self, sequence_length):
+    
+        raw_outputs, memory_views = self.get_outputs()
+        final_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(raw_outputs[:, sequence_length - 1, :], 
+                                                                  self.target_output_final))
+        return raw_outputs[:, sequence_length - 1, :], final_loss
+    
+    def get_elementwise_loss(self, loss_weights):
+        raw_outputs, memory_views = self.get_outputs()
+        loss_vector = tf.nn.softmax_cross_entropy_with_logits(raw_outputs, self.target_output)
+        loss = tf.reduce_mean(loss_weights[None,...]*loss_vector)
+        return raw_outputs, loss
+    
+    
+    
+    
