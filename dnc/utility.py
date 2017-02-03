@@ -231,32 +231,6 @@ def get_im_sequence(batch_x, batch_y):
     return X, batch_y
 
 
-#def window_vector(X, ind_1, ind_2, window_size):
-    # Returns the window of the vector, wrapped around
-#   height = tf.shape(X)[1]
-#   width  = tf.shape(X)[2]
-    
-#    window = tf.ones([window_size,window_size])
-     
-#   pad_top = tf.zeros([ind_1, width])
-#   pad_bot = tf.zeros([tf.maximum(tf.subtract(height,tf.add(ind_1,window_size)),0),wi
-
-#    pad_top = tf.zeros([ind_1, tf.shape(pad_r)[1]])
-#    pad_bot = tf.zeros([tf.subtract(height,tf.minimum(tf.add(ind_1,window_size),tf.subtract(height,ind_1))),tf.shape(pad_r)[1]])
-    
-#   tmp_mask = tf.concat(1,[pad_l,window])
-#   tmp_mask = tf.concat(1,[tmp_mask,pad_r])
-#   tmp_mask = tf.concat(0,[pad_top,tmp_mask])
-#    mask = tf.expand_dims(tf.concat(0,[tmp_mask,pad_bot]),0)
-
-
-#   return X[:, tf.mod(ind_1, height):tf.mod(ind_1 + window_size, height), 
-#               tf.mod(ind_2, width):tf.mod(ind_2 + window_size, width)]    
-    # return X[:, tf.maximum(0, ind_1):tf.minimum(ind_1 + window_size, tf.shape(X)[1]), 
-    #             tf.maximum(0, ind_2):tf.minimum(ind_2 + window_size, tf.shape(X)[1])]    
-#   return tf.multiply(mask,X)
-
-
 def apply_mask(X, row_v, col_v, f_mask, focus_range, focus_type):
 #    import ipdb
 #    ipdb.set_trace()
@@ -276,6 +250,33 @@ def apply_mask(X, row_v, col_v, f_mask, focus_range, focus_type):
     
 
     return masked_X
+
+def apply_spotlight(X,spotlight_row, spotlight_col, spotlight_sigma):
+          
+    # Center coordinates
+    spotlight_row = spotlight_row -  12
+    spotlight_col = spotlight_col -  12
+    
+    # Make axes
+    x_axis = np.float32(range(-12,12))
+    y_axis = np.float32(range(-12,12))    
+    plane = np.float32(tuple(itertools.product(x_axis,y_axis)))
+
+    tmp_id = tf.constant(np.identity(2,dtype=np.float32)) 
+    
+    # Gaussian parameters 
+    mu = tf.concat(0,[spotlight_row, spotlight_col]) 
+    sigma = spotlight_sigma*tmp_id
+     
+    dist = tf.contrib.distributions.MultivariateNormalFull(mu,sigma)
+    spotlight = dist.pdf(plane)
+    
+    spotlight = tf.reshape(spotlight,(24,24))
+    spotlit_X = tf.multiply(X,spotlight)
+    
+     
+    return spotlit_X
+
 
 def get_updt(loss, learning_rate=1e-4, momentum=0.9, clip=10):
     opt_func = tf.train.AdamOptimizer(1e-6)
