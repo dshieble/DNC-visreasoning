@@ -36,7 +36,7 @@ params["print_step"] = 500 #the number of steps between each loss printintg
 params["save_step"] = 4000 # the number of steps between each save
 
 params["device"] = "/gpu:0" #Set this to /gpu:0 or /gpu:1 etc if you want to use the gpu instead
-params["focus_type"] = "rowcol"
+params["focus_type"] = "spotlight"
 params["loss_type"] = "all_steps"
 
 
@@ -166,7 +166,7 @@ with tf.device(params["device"]):
         elif params["focus_type"] == "mask":
             focuses.append(np.array(out_attr3)[:,0,:])
 	elif params["focus_type"] == "spotlight":
-	    focuses.append((np.array(out_attr1)[:,0,:], np.array(out_attr2)[:,0,:]), np.array(out_attr3)[:,0,:])
+	    focuses.append((np.array(out_attr1)[:,0,:], np.array(out_attr2)[:,0,:], np.array(out_attr3)[:,0,:]))
 
         #Print the loss and accuracy thus far
         if len(target_vals) % params["print_step"] == 0 and len(target_vals) > 0:
