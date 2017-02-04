@@ -265,7 +265,7 @@ def apply_spotlight(X,spotlight_row, spotlight_col, spotlight_sigma):
     tmp_id = tf.constant(np.identity(2,dtype=np.float32)) 
     
     # Gaussian parameters 
-    mu = tf.concat(0,[spotlight_row, spotlight_col]) 
+    mu = tf.concat(0,[spotlight_col,spotlight_row]) 
     sigma = spotlight_sigma*tmp_id
      
     dist = tf.contrib.distributions.MultivariateNormalFull(mu,sigma)

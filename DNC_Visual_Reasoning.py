@@ -21,9 +21,9 @@ os.system("rm {}/*.npy".format(cifs_path))
 #Parameters of the task and the training
 params = {}
 params["timestamp"] = str(int(time.time())) #the  identifier for this test run
-params["task"] = "sd" #specify the task
-params["num_iter"] = 10000 #the number of batches to run
-params["bsize"] = 10 #the back size
+params["task"] = "center" #specify the task
+params["num_iter"] = 15000 #the number of batches to run
+params["bsize"] = 10 #the batch size
 params["input_side"] = 24 #the length of each side of each image
 params["input_size"] = params["input_side"]**2 #the number of pixels
 params["num_labels"] = 2 #the number of labels

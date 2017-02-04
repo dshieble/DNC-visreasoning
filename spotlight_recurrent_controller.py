@@ -120,14 +120,9 @@ class SpotlightRecurrentController(BaseController):
         #The focus row and focus col are multiplied together to yield the generated mask
         nn_output = nn_output/(1e-4 + tf.reduce_sum(tf.abs(nn_output)))
 
-        new_spotlight_row = tf.nn.relu(tf.matmul(nn_output, self.spotlight_row_updater))
-        new_spotlight_col = tf.nn.relu(tf.matmul(nn_output, self.spotlight_col_updater))
-        new_spotlight_sigma = tf.nn.relu(tf.matmul(nn_output, self.spotlight_sigma_updater))
-
-        # TODO: Allow for non-square stimuli
-        new_spotlight_row = (np.sqrt(self.input_size) - 1)*new_spotlight_row/(1e-4 + tf.reduce_sum(tf.abs(new_spotlight_row)))
-        new_spotlight_col = (np.sqrt(self.input_size) - 1)*new_spotlight_col/(1e-4 + tf.reduce_sum(tf.abs(new_spotlight_col)))
-        new_spotlight_sigma = self.sigma_max*new_spotlight_sigma/(1e-4 + tf.reduce_sum(tf.abs(new_spotlight_sigma))) + 1
+        new_spotlight_row = (np.sqrt(self.input_size) - 1)*tf.sigmoid(tf.matmul(nn_output, self.spotlight_row_updater))
+        new_spotlight_col = (np.sqrt(self.input_size) - 1)*tf.sigmoid(tf.matmul(nn_output, self.spotlight_col_updater))
+        new_spotlight_sigma = self.sigma_max*tf.sigmoid(tf.matmul(nn_output, self.spotlight_sigma_updater)) + 1
 
         return new_spotlight_row, new_spotlight_col, new_spotlight_sigma
 
