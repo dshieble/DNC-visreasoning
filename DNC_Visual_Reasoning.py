@@ -34,10 +34,14 @@ params["memory_word_size"] = 10#the size of memory words
 params["memory_read_heads"] = 1 #the number of read heads
 params["print_step"] = 500 #the number of steps between each loss printintg
 params["save_step"] = 4000 # the number of steps between each save
-
 params["device"] = "/gpu:0" #Set this to /gpu:0 or /gpu:1 etc if you want to use the gpu instead
 params["focus_type"] = "circular_spotlight"
 params["loss_type"] = "all_steps"
+
+params["item_position"] = "fixed" # fixed or random; controls location of items in square_detect, 2_square_detect and sd tasks
+params["item_size"] = "fixed"     # ""; controls size ""
+
+
 
 
 # Import correct controller and define attention attributes
@@ -144,7 +148,7 @@ with tf.device(params["device"]):
 	    updt] + 
 	    getattr(ncomputer.controller,attr1) + 
 	    getattr(ncomputer.controller,attr2) +
-	    getattr(ncomputer.controller,attr3) + var_grad
+	    getattr(ncomputer.controller,attr3)  
 	    , feed_dict={
 	    ncomputer.input_data: Input,
 	    ncomputer.target_output: Target_Output

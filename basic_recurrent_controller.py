@@ -14,7 +14,7 @@ class BasicRecurrentController(BaseController):
     def __init__(self, input_size, output_size, memory_read_heads,
                      memory_word_size, sequence_length, batch_size=1, focus_type="mask"):
             self.focus_type = focus_type
-  
+ 
     def network_vars(self, batch_size, **kwargs):
         initial_std = lambda in_nodes: np.min(1e-2, np.sqrt(2.0 / in_nodes))
         input_ = self.nn_input_size

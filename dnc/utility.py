@@ -158,7 +158,7 @@ def get_right_bar_images(size, bsize, sequence_length):
         y.append(label)
     return np.array(X), np.array(y)
 
-def get_sd_images(size, bsize, sequence_length, half_max_item ):
+def get_sd_images(size, bsize, sequence_length, half_max_item, item_size, item_position):
 
     # Makes same/different images
     # Images have two square bit patterns of side size
@@ -171,18 +171,28 @@ def get_sd_images(size, bsize, sequence_length, half_max_item ):
         label = np.array([0,0])
         s_or_d = np.random.uniform() < .5
         s_or_d *=1
-        half_item = np.random.randint(1,half_max_item)
-        label[s_or_d] = 1
+
+	if item_size == "random":
+            half_item = np.random.randint(1,half_max_item)
+        else:
+	    half_item = half_max_item
+
+	label[s_or_d] = 1
         im = np.zeros((size, size))
-
-        vert_1 = np.random.randint(0,size-2*half_item + 1)
-        vert_2 = np.random.randint(0,size-2*half_item + 1)
-
-        offset = np.random.randint(half_item + 1, .5*size - half_item + 1)
+        
+	if item_position == "random":
+            vert_1 = np.random.randint(0,size-2*half_item + 1)
+            vert_2 = np.random.randint(0,size-2*half_item + 1)
+            offset = np.random.randint(half_item + 1, .5*size - half_item + 1)
+	else:
+	    vert_1 = size/2.0 - half_item
+	    vert_2 = size/2.0 - half_item
+	    offset = np.floor(size/4.0)
 
         bit_p1 = np.round(np.random.uniform(0,1,size=(2*half_item, 2*half_item)))
         bit_p2 = np.round(np.random.uniform(0,1,size=(2*half_item, 2*half_item)))
-
+	
+	
         im[vert_1: vert_1 + 2* half_item, \
            .5*size - half_item - offset:.5*size + half_item - offset] = bit_p1
         im[vert_2 : vert_2 + 2* half_item ,\
@@ -194,7 +204,7 @@ def get_sd_images(size, bsize, sequence_length, half_max_item ):
         y.append(label)
     return np.array(X), np.array(y)
 
-def get_square_detect_images(size, bsize, sequence_length):
+def get_square_detect_images(size, bsize, sequence_length, item_size, item_position):
     X = []
     y = []
     
@@ -210,8 +220,15 @@ def get_square_detect_images(size, bsize, sequence_length):
             X.append([np.ravel(canvas) for j in range(sequence_length)])
             y.append(label)
         else:
-            square_side = np.floor(size/6.0)
-            upper_left_corner = [np.random.randint(0,size-square_side), np.random.randint(0,size-square_side)]
+	    if item_size == "fixed":
+                square_side = np.floor(size/6.0)
+	    else:
+		square_side = np.ceil(np.random.uniform(1, size/2.0))
+	    
+	    if item_position == "fixed":
+	        upper_left_corner = [0,0]
+	    else:
+	        upper_left_corner = [np.random.randint(0,size-square_side), np.random.randint(0,size-square_side)]
 
             square = np.ones((square_side, square_side))
             canvas[upper_left_corner[0]:upper_left_corner[0] + square_side , upper_left_corner[1]:upper_left_corner[1] + square_side] = square
@@ -222,7 +239,7 @@ def get_square_detect_images(size, bsize, sequence_length):
     return np.array(X), np.array(y)
 
 
-def get_2_square_detect_images(size, bsize, sequence_length):
+def get_2_square_detect_images(size, bsize, sequence_length,item_size,item_position):
     X = []
     y = []
     
@@ -232,42 +249,60 @@ def get_2_square_detect_images(size, bsize, sequence_length):
         two_squares *=1
         label[two_squares] = 1
 
-
-        stamp1 = np.zeros((size,size))
-	stamp2 = np.zeros((size,size))
-
 	flag = 0
 
         if not two_squares:
-            square_side = np.floor(size/6.0)
-            upper_left_corner = [np.random.randint(0,size-square_side), np.random.randint(0,size-square_side)]
+	     canvas = np.zeros((size,size))
+             if item_size == "fixed":
+                 square_side = np.floor(size/6.0)
+             else:
+                 square_side = np.ceil(np.random.uniform(1, size/2.0))
+             if item_position == "fixed":
+                 upper_left_corner = [0,0]
+             else:
+                 upper_left_corner = [np.random.randint(0,size-square_side), np.random.randint(0,size-square_side)]
 
-            square = np.ones((square_side, square_side))
-            canvas[upper_left_corner[0]:upper_left_corner[0] + square_side , upper_left_corner[1]:upper_left_corner[1] + square_side] = square
+             square = np.ones((square_side, square_side))
+             canvas[upper_left_corner[0]:upper_left_corner[0] + square_side , upper_left_corner[1]:upper_left_corner[1] + square_side] = square
 
-            X.append([np.ravel(canvas) for j in range(sequence_length)])
-            y.append(label) 
+             np.ones((square_side, square_side))
+	     X.append([np.ravel(canvas) for j in range(sequence_length)])
+             y.append(label) 
 
         else:
 
 	    while flag == 0:
                 canvas = np.zeros((size,size))
-                square_side = np.floor(size/6.0)
-            	square= np.ones((square_side, square_side))
+		stamp1 = np.zeros((size,size))
+		stamp2 = np.zeros((size,size))
+                
+		if item_size == "fixed":
+	            square_side1 = np.floor(size/6.0)
+		    square_side2 = np.floor(size/6.0)
+            	    square1= np.ones((square_side1, square_side1))
+		    square2 = np.ones((square_side2, square_side2))
+		else:
+		    square_side1 = np.ceil(np.random.uniform(1, size/2.0))
+		    square_side2 =  np.ceil(np.random.uniform(1, size/2.0))
+		    square1 = np.ones((square_side1, square_side1))
+		    square2 = np.ones((square_side2, square_side2))
+		if item_position == "fixed":
+		    upper_left_corner1 = [0,0]
+		    upper_left_corner2 = [size - square_side2,0]
+		else:
+	            upper_left_corner1 = [np.random.randint(0,size-square_side1), np.random.randint(0,size-square_side1)]
+	            upper_left_corner2 = [np.random.randint(0,size-square_side2), np.random.randint(0,size-square_side2)]
 
-	        upper_left_corner1 = [np.random.randint(0,size-square_side), np.random.randint(0,size-square_side)]
-	        upper_left_corner2 = [np.random.randint(0,size-square_side), np.random.randint(0,size-square_side)]
 
-
-	        stamp1[upper_left_corner[0]:upper_left_corner[0] + square_side , upper_left_corner[1]:upper_left_corner[1] + square_side] = square
-	        stamp1[upper_left_corner[0]:upper_left_corner[0] + square_side , upper_left_corner[1]:upper_left_corner[1] + square_side] = square
+	        stamp1[upper_left_corner1[0]:upper_left_corner1[0] + square_side1 , upper_left_corner1[1]:upper_left_corner1[1] + square_side1] = square1
+	        stamp2[upper_left_corner2[0]:upper_left_corner2[0] + square_side2 , upper_left_corner2[1]:upper_left_corner2[1] + square_side2] = square2
 
 	        canvas += stamp1 + stamp2
 
-	    if np.max(np.max(canvas)) == 1:
-	    	X.append([np.ravel(canvas) for j in range(sequence_length)])
-	    	y.append(label) 
-		flag = 1
+	    	if np.max(np.max(canvas)) == 1:
+	    	    X.append([np.ravel(canvas) for j in range(sequence_length)])
+	    	    y.append(label) 
+		    flag = 1
 		
     return np.array(X), np.array(y)
 
@@ -279,10 +314,12 @@ def make_ims(params):
                                                        bsize=params["bsize"], sequence_length=params["sequence_length"])
     elif params["task"] == "square_detect":
         Input, Target_Output = get_square_detect_images(size=params["input_side"], 
-                                                       bsize=params["bsize"], sequence_length=params["sequence_length"])
+                                                       bsize=params["bsize"], sequence_length=params["sequence_length"],
+					               item_size = params["item_size"], item_position = params["item_size"])
     elif params["task"] == "2_square_detect":
-        Input, Target_Output = get_square_detect_images(size=params["input_side"], 
-                                                       bsize=params["bsize"], sequence_length=params["sequence_length"])
+        Input, Target_Output = get_2_square_detect_images(size=params["input_side"], 
+                                                       bsize=params["bsize"], sequence_length=params["sequence_length"],
+							item_size = params["item_size"], item_position = params["item_position"])
     elif params["task"] == "right":
         Input, Target_Output = get_right_bar_images(size=params["input_side"], 
                                                        bsize=params["bsize"], sequence_length=params["sequence_length"])
@@ -290,7 +327,7 @@ def make_ims(params):
         Input, Target_Output = get_sd_images(size=params["input_side"], 
                                                bsize=params["bsize"], 
                                                sequence_length=params["sequence_length"],
-                                               half_max_item=params["half_max_item"])
+                                               half_max_item=params["half_max_item"],item_size = params["item_size"], item_position=params["item_position"])
     elif params["task"] == "lrb":
         Input, Target_Output = get_lrb_images(size=params["input_side"], 
                                                        bsize=params["bsize"], sequence_length=params["sequence_length"])
