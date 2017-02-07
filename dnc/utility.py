@@ -189,15 +189,100 @@ def get_sd_images(size, bsize, sequence_length, half_max_item ):
            .5*size + offset -  half_item : .5*size + offset + half_item] = bit_p1*(1-s_or_d) + \
         bit_p2*s_or_d
 
-        X.append([np.ravel(im) for i in range(sequence_length)])
+        X.append([np.ravel(im) for j in range(sequence_length)])
 
         y.append(label)
     return np.array(X), np.array(y)
 
+def get_square_detect_images(size, bsize, sequence_length):
+    X = []
+    y = []
+    
+    for i in range(bsize):
+        label = np.array([0,0])
+        p_or_a = np.random.uniform() < .5
+        p_or_a *=1
+        label[p_or_a] = 1
+
+        canvas = np.zeros((size,size))
+
+        if not p_or_a:
+            X.append([np.ravel(canvas) for j in range(sequence_length)])
+            y.append(label)
+        else:
+            square_side = np.floor(size/6.0)
+            upper_left_corner = [np.random.randint(0,size-square_side), np.random.randint(0,size-square_side)]
+
+            square = np.ones((square_side, square_side))
+            canvas[upper_left_corner[0]:upper_left_corner[0] + square_side , upper_left_corner[1]:upper_left_corner[1] + square_side] = square
+
+            X.append([np.ravel(canvas) for j in range(sequence_length)])
+            y.append(label) 
+
+    return np.array(X), np.array(y)
+
+
+def get_2_square_detect_images(size, bsize, sequence_length):
+    X = []
+    y = []
+    
+    for i in range(bsize):
+        label = np.array([0,0])
+        two_squares = np.random.uniform() < .5
+        two_squares *=1
+        label[two_squares] = 1
+
+
+        stamp1 = np.zeros((size,size))
+	stamp2 = np.zeros((size,size))
+
+	flag = 0
+
+        if not two_squares:
+            square_side = np.floor(size/6.0)
+            upper_left_corner = [np.random.randint(0,size-square_side), np.random.randint(0,size-square_side)]
+
+            square = np.ones((square_side, square_side))
+            canvas[upper_left_corner[0]:upper_left_corner[0] + square_side , upper_left_corner[1]:upper_left_corner[1] + square_side] = square
+
+            X.append([np.ravel(canvas) for j in range(sequence_length)])
+            y.append(label) 
+
+        else:
+
+	    while flag == 0:
+                canvas = np.zeros((size,size))
+                square_side = np.floor(size/6.0)
+            	square= np.ones((square_side, square_side))
+
+	        upper_left_corner1 = [np.random.randint(0,size-square_side), np.random.randint(0,size-square_side)]
+	        upper_left_corner2 = [np.random.randint(0,size-square_side), np.random.randint(0,size-square_side)]
+
+
+	        stamp1[upper_left_corner[0]:upper_left_corner[0] + square_side , upper_left_corner[1]:upper_left_corner[1] + square_side] = square
+	        stamp1[upper_left_corner[0]:upper_left_corner[0] + square_side , upper_left_corner[1]:upper_left_corner[1] + square_side] = square
+
+	        canvas += stamp1 + stamp2
+
+	    if np.max(np.max(canvas)) == 1:
+	    	X.append([np.ravel(canvas) for j in range(sequence_length)])
+	    	y.append(label) 
+		flag = 1
+		
+    return np.array(X), np.array(y)
+
+
 def make_ims(params):
+
     if params["task"] == "center":
         Input, Target_Output = get_center_bar_images(size=params["input_side"], 
-                                                        bsize=params["bsize"], sequence_length=params["sequence_length"])
+                                                       bsize=params["bsize"], sequence_length=params["sequence_length"])
+    elif params["task"] == "square_detect":
+        Input, Target_Output = get_square_detect_images(size=params["input_side"], 
+                                                       bsize=params["bsize"], sequence_length=params["sequence_length"])
+    elif params["task"] == "2_square_detect":
+        Input, Target_Output = get_square_detect_images(size=params["input_side"], 
+                                                       bsize=params["bsize"], sequence_length=params["sequence_length"])
     elif params["task"] == "right":
         Input, Target_Output = get_right_bar_images(size=params["input_side"], 
                                                        bsize=params["bsize"], sequence_length=params["sequence_length"])
@@ -232,8 +317,7 @@ def get_im_sequence(batch_x, batch_y):
 
 
 def apply_mask(X, row_v, col_v, f_mask, focus_range, focus_type):
-#    import ipdb
-#    ipdb.set_trace()
+
     if focus_type == "rowcol":
         num_row = tf.shape(X)[0]
         num_col = tf.shape(X)[1] 
@@ -276,6 +360,35 @@ def apply_spotlight(X,spotlight_row, spotlight_col, spotlight_sigma):
     
      
     return spotlit_X
+
+def apply_spotlight_circle(X,spotlight_row, spotlight_col, spotlight_radius):
+    
+    height = tf.shape(X)[0]
+    width = tf.shape(X)[1]
+
+    # Center coordinates
+    spotlight_row = spotlight_row -  12
+    spotlight_col = spotlight_col -  12
+
+    center = tf.to_float([spotlight_row, spotlight_col])
+    
+    # Make axes
+    x_axis = np.float32(range(-12,12))
+    y_axis = np.float32(range(-12,12))    
+    plane = np.float32(tuple(itertools.product(x_axis,y_axis)))
+    y_coords = plane[:,0]
+    x_coords = plane[:,1]
+
+
+    # Make circular spotlight
+
+    spotlight = tf.sqrt((y_coords - center[0])**2 + (x_coords - center[1])**2) <= spotlight_radius
+    spotlight = tf.to_float(tf.reshape(spotlight,(24,24)))
+    spotlit_X = tf.multiply(X,spotlight)
+    
+     
+    return spotlit_X
+
 
 
 def get_updt(loss, learning_rate=1e-4, momentum=0.9, clip=10):

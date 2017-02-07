@@ -21,7 +21,7 @@ os.system("rm {}/*.npy".format(cifs_path))
 #Parameters of the task and the training
 params = {}
 params["timestamp"] = str(int(time.time())) #the  identifier for this test run
-params["task"] = "center" #specify the task
+params["task"] = "square_detect" #specify the task
 params["num_iter"] = 15000 #the number of batches to run
 params["bsize"] = 10 #the batch size
 params["input_side"] = 24 #the length of each side of each image
@@ -36,7 +36,7 @@ params["print_step"] = 500 #the number of steps between each loss printintg
 params["save_step"] = 4000 # the number of steps between each save
 
 params["device"] = "/gpu:0" #Set this to /gpu:0 or /gpu:1 etc if you want to use the gpu instead
-params["focus_type"] = "spotlight"
+params["focus_type"] = "circular_spotlight"
 params["loss_type"] = "all_steps"
 
 
@@ -44,14 +44,14 @@ params["loss_type"] = "all_steps"
 
 if params["focus_type"] == "none_feedforward":
     from feedforward_controller import FeedforwardController as ctrlr
-    attr1 = "focus_row"
-    attr2 = "focus_col"
-    attr3 = "focus_mask"
+    attr1 = "W1"
+    attr2 = "W2"
+    attr3 = "W3"
 elif params["focus_type"] == "none_recurrent":
     from basic_recurrent_controller import BasicRecurrentController as ctrlr
-    attr1 = "focus_row"
-    attr2 = "focus_col"
-    attr3 = "focus_mask"
+    attr1 = "W1"
+    attr2 = "W2"
+    attr3 = "W3"
 elif params["focus_type"] == "mask" or params["focus_type"] == "rowcol":
     from focus_recurrent_controller import FocusRecurrentController as ctrlr
     attr1 = "focus_row"
@@ -62,6 +62,12 @@ elif params["focus_type"] == "spotlight":
     attr1 = "spotlight_row"
     attr2 = "spotlight_col"
     attr3 = "spotlight_sigma"
+elif params["focus_type"] == "circular_spotlight":
+    from circle_recurrent_controller import CircularSpotlightRecurrentController as ctrlr
+    attr1 = "spotlight_row"
+    attr2 = "spotlight_col"
+    attr3 = "spotlight_radius"
+
 
 # Set loss function
 
@@ -120,17 +126,16 @@ with tf.device(params["device"]):
     output_vals = []
     target_vals = []
     view_vals = []
-    focuses = []
+    attributes = []
     mem = []
-
+       
     #Run the training
     for i in tqdm(range(params["num_iter"])):
-
-        #Get the data and expected output for this batch
+        
+	#Get the data and expected output for this batch
         Input, Target_Output = uf.make_ims(params)
 
         #Run the  update step
-
 
         OUT = sess.run([
 	    loss,
@@ -139,12 +144,12 @@ with tf.device(params["device"]):
 	    updt] + 
 	    getattr(ncomputer.controller,attr1) + 
 	    getattr(ncomputer.controller,attr2) +
-	    getattr(ncomputer.controller,attr3)
+	    getattr(ncomputer.controller,attr3) + var_grad
 	    , feed_dict={
 	    ncomputer.input_data: Input,
 	    ncomputer.target_output: Target_Output
         })
-
+        
         l, o, v = OUT[:3]
 
       	out_attr1 = OUT[4:4 + len(getattr(ncomputer.controller,attr1))]
@@ -153,7 +158,7 @@ with tf.device(params["device"]):
         out_attr3 = OUT[4 + len(getattr(ncomputer.controller,attr1)) +
                  len(getattr(ncomputer.controller,attr2)):4 + len(getattr(ncomputer.controller,attr1)) +
                  len(getattr(ncomputer.controller,attr2)) + len(getattr(ncomputer.controller,attr3))]
-
+         
         #Keep track of the values at this timestep
         loss_vals.append(l)
         input_vals.append(Input)
@@ -162,11 +167,11 @@ with tf.device(params["device"]):
         target_vals += list(Target_Output)
         mem.append(ncomputer.packed_memory_view)
         if params["focus_type"] == "rowcol":
-            focuses.append((np.array(out_attr1)[:,0,:], np.array(out_attr2)[:,0,:]))
+            attributes.append((np.array(out_attr1), np.array(out_attr2)))
         elif params["focus_type"] == "mask":
-            focuses.append(np.array(out_attr3)[:,0,:])
-	elif params["focus_type"] == "spotlight":
-	    focuses.append((np.array(out_attr1)[:,0,:], np.array(out_attr2)[:,0,:], np.array(out_attr3)[:,0,:]))
+            attributes.append(np.array(out_attr3))
+	elif params["focus_type"] == "spotlight" or params["focus_type"] == "circular_spotlight":
+	    attributes.append((np.array(out_attr1), np.array(out_attr2), np.array(out_attr3)))
 
         #Print the loss and accuracy thus far
         if len(target_vals) % params["print_step"] == 0 and len(target_vals) > 0:
@@ -189,7 +194,7 @@ with tf.device(params["device"]):
             np.save("{}/{}/outputs_{}.npy".format(cifs_path, params["timestamp"], i), output_vals[-50:])
             np.save("{}/{}/targets_{}.npy".format(cifs_path, params["timestamp"], i), target_vals[-50:])
             np.save("{}/{}/inputs_{}.npy".format(cifs_path, params["timestamp"], i), input_vals[-50:])
-            np.save("{}/{}/focuses_{}.npy".format(cifs_path, params["timestamp"], i), focuses[-50:])
+            np.save("{}/{}/attributes_{}.npy".format(cifs_path, params["timestamp"], i), attributes[-50:])
 
             #Save the weights of the model - disabled because the model checkpoints are big and bulky 
             # ncomputer.save(sess, 

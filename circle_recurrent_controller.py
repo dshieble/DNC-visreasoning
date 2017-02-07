@@ -10,16 +10,18 @@ To use this controller, pass in a "sequence" of the same image repeated multiple
 
 """
 
-class SpotlightRecurrentController(BaseController):
+class CircularSpotlightRecurrentController(BaseController):
      #Add focus type as a parameter
     def __init__(self, input_size, output_size, memory_read_heads, 
                  memory_word_size, sequence_length, batch_size=1, focus_type="mask"):
         self.focus_type = focus_type
-        super(SpotlightRecurrentController, self).__init__(input_size, output_size, memory_read_heads,  
+        super(CircularSpotlightRecurrentController, self).__init__(input_size, output_size, memory_read_heads,  
                                                        memory_word_size, sequence_length, batch_size=batch_size)
     
     # Sigma max chosen so that FWHM of Gaussian bump is max item size
-    sigma_max = 6.0/(2*np.sqrt(2*np.log(2))) 
+    radius_max = 6.0
+    radius_fixed = 3.0
+    variable_aperture = False 
     nn_output_size = 256
     def network_vars(self):
         initial_std = lambda in_nodes: np.min(1e-2, np.sqrt(2.0 / in_nodes))
@@ -46,15 +48,15 @@ class SpotlightRecurrentController(BaseController):
         self.spotlight_col_updater = tf.Variable(tf.truncated_normal([self.nn_output_size, 1],
                                                                   stddev=initial_std(self.nn_output_size)),
                                                                   name='spotlight_col_updater')
-        #Multiplier to update the sigma parameter
-        self.spotlight_sigma_updater = tf.Variable(tf.truncated_normal([self.nn_output_size, 1],
+        #Multiplier to update the radius parameter
+        self.spotlight_radius_updater = tf.Variable(tf.truncated_normal([self.nn_output_size, 1],
                                                                   stddev=initial_std(self.nn_output_size)),
-                                                                  name='spotlight_sigma_updater')
+                                                                  name='spotlight_radius_updater')
        
         # Biases for spotlight parameters
  	self.spotlight_row_bias = tf.Variable(tf.zeros([1]),name='row_bias')
 	self.spotlight_col_bias = tf.Variable(tf.zeros([1]),name='col_bias')
-	self.spotlight_sigma_bias = tf.Variable(tf.zeros([1]),name='sigma_bias')
+	self.spotlight_radius_bias = tf.Variable(tf.zeros([1]),name='radius_bias')
 	
         #The focus row and focus column vectors encode the distribution of possible index locations to move the focus window,
         #encoded as a vector of index-weights. These tensors store a matrix of the focus
@@ -62,7 +64,7 @@ class SpotlightRecurrentController(BaseController):
         self.state = tf.truncated_normal([self.batch_size, self.nn_output_size])
         self.spotlight_row = [tf.random_uniform((self.batch_size, 1)) for s in range(self.sequence_length + 1)]
         self.spotlight_col = [tf.random_uniform((self.batch_size, 1)) for s in range(self.sequence_length + 1)]
-        self.spotlight_sigma = [tf.random_uniform((self.batch_size, 1)) for s in range(self.sequence_length + 1)]
+        self.spotlight_radius = [self.radius_fixed*tf.ones((self.batch_size, 1)) for s in range(self.sequence_length + 1)]
         
     def network_op(self, X, state, t):
         #Reset focus at the beginning of each iteration
@@ -72,11 +74,11 @@ class SpotlightRecurrentController(BaseController):
                               for s in range(self.sequence_length + 1)]
             self.spotlight_col = [tf.random_uniform((self.batch_size, 1)) 
                               for s in range(self.sequence_length + 1)]
-            self.spotlight_sigma = [tf.random_uniform((self.batch_size, 1)) 
+            self.spotlight_radius = [self.radius_fixed*tf.ones((self.batch_size,1)) 
                               for s in range(self.sequence_length + 1)]
      
         #The attended image
-        Xf = self.apply_attention(X, self.spotlight_row[t], self.spotlight_col[t], self.spotlight_sigma[t]) # Here we add an attentional filter to the image
+        Xf = self.apply_attention(X, self.spotlight_row[t], self.spotlight_col[t], self.spotlight_radius[t]) # Here we add an attentional filter to the image
         nn_output = self.run_controller_network(Xf, state)
 
         return nn_output, self.state
@@ -96,15 +98,15 @@ class SpotlightRecurrentController(BaseController):
         self.nn_output = tf.nn.relu(self.rnn_output)
         return self.nn_output
 
-    def apply_attention(self, X, spotlight_row, spotlight_col, spotlight_sigma):    
+    def apply_attention(self, X, spotlight_row, spotlight_col, spotlight_radius):    
         #Given some input X and some focus vectors, apply attention and get the input to the controller. 
         core = X[:, :self.input_size]
         rest = X[:, self.input_size:] #the read-memory part of the input
         height, width = np.int32(np.sqrt(self.input_size)), np.int32(np.sqrt(self.input_size))
        
         coreSq = tf.reshape(core, (self.batch_size, height, width)) 
-        coreSqW = tf.concat(0, [uf.apply_spotlight(coreSq[i:i+1], spotlight_row[i], spotlight_col[i], 
-                                              spotlight_sigma[i])
+        coreSqW = tf.concat(0, [uf.apply_spotlight_circle(coreSq[i:i+1], spotlight_row[i], spotlight_col[i], 
+                                              spotlight_radius[i])
                                for i in range(self.batch_size)])
 
         coreFocus =  tf.reshape(coreSqW, (self.batch_size, height**2))
@@ -118,19 +120,22 @@ class SpotlightRecurrentController(BaseController):
 
         final_output = pre_output + tf.matmul(flat_read_vectors, self.mem_output_weights)
 
-        self.spotlight_row[t+1], self.spotlight_col[t+1], self.spotlight_sigma[t+1] = self.get_new_focus(self.spotlight_row[t], self.spotlight_col[t], self.spotlight_sigma[t], nn_output)
+        self.spotlight_row[t+1], self.spotlight_col[t+1], self.spotlight_radius[t+1] = self.get_new_focus(self.spotlight_row[t], self.spotlight_col[t], self.spotlight_radius[t], nn_output)
 
         return final_output
 
-    def get_new_focus(self, spotlight_row, spotlight_col, spotlight_sigma, nn_output):
+    def get_new_focus(self, spotlight_row, spotlight_col, spotlight_radius, nn_output):
         #The focus row and focus col are multiplied together to yield the generated mask
         nn_output = nn_output/(1e-4 + tf.reduce_sum(tf.abs(nn_output)))
 
         new_spotlight_row = (np.sqrt(self.input_size) - 1)*tf.sigmoid(tf.matmul(nn_output, self.spotlight_row_updater) + self.spotlight_row_bias)
         new_spotlight_col = (np.sqrt(self.input_size) - 1)*tf.sigmoid(tf.matmul(nn_output, self.spotlight_col_updater) + self.spotlight_col_bias)
-        new_spotlight_sigma = self.sigma_max*tf.sigmoid(tf.matmul(nn_output, self.spotlight_sigma_updater) + self.spotlight_sigma_bias)
-
-        return new_spotlight_row, new_spotlight_col, new_spotlight_sigma
+        
+        if self.variable_aperture is True: 
+            new_spotlight_radius = self.radius_max*tf.sigmoid(tf.matmul(nn_output, self.spotlight_radius_updater) + self.spotlight_radius_bias)
+	else:
+	    new_spotlight_radius = spotlight_radius
+        return new_spotlight_row, new_spotlight_col, new_spotlight_radius
 
     def get_state(self):            
         return self.state
