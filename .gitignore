@@ -87,3 +87,4 @@ ENV/
 
 # Rope project settings
 .ropeproject
+media/data_cifs/DNC_Visual_Reasoning_Results_Logs/*
