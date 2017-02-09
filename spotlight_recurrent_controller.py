@@ -11,7 +11,7 @@ To use this controller, pass in a "sequence" of the same image repeated multiple
 """
 
 class SpotlightRecurrentController(BaseController):
-     #Add focus type as a parameter
+    #Add focus type as a parameter
     def __init__(self, input_size, output_size, memory_read_heads, 
                  memory_word_size, sequence_length, batch_size=1, focus_type="mask"):
         self.focus_type = focus_type

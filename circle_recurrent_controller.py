@@ -128,8 +128,8 @@ class CircularSpotlightRecurrentController(BaseController):
         #The focus row and focus col are multiplied together to yield the generated mask
         nn_output = nn_output/(1e-4 + tf.reduce_sum(tf.abs(nn_output)))
 
-        new_spotlight_row = (np.sqrt(self.input_size) - 1)*tf.sigmoid(tf.matmul(nn_output, self.spotlight_row_updater) + self.spotlight_row_bias)
-        new_spotlight_col = (np.sqrt(self.input_size) - 1)*tf.sigmoid(tf.matmul(nn_output, self.spotlight_col_updater) + self.spotlight_col_bias)
+        new_spotlight_row = (np.sqrt(self.input_size)/2.0 - 1)*tf.sigmoid(tf.matmul(nn_output, self.spotlight_row_updater) + self.spotlight_row_bias)
+        new_spotlight_col = (np.sqrt(self.input_size)/2.0 - 1)*tf.sigmoid(tf.matmul(nn_output, self.spotlight_col_updater) + self.spotlight_col_bias)
         
         if self.variable_aperture is True: 
             new_spotlight_radius = self.radius_max*tf.sigmoid(tf.matmul(nn_output, self.spotlight_radius_updater) + self.spotlight_radius_bias)

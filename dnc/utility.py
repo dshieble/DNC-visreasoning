@@ -421,19 +421,18 @@ def apply_spotlight_circle(X,spotlight_row, spotlight_col, spotlight_radius):
 
     spotlight = tf.sqrt((y_coords - center[0])**2 + (x_coords - center[1])**2) <= spotlight_radius
     spotlight = tf.to_float(tf.reshape(spotlight,(24,24)))
+    #spotlight = np.zeros((24,24))
     spotlit_X = tf.multiply(X,spotlight)
     
      
     return spotlit_X
 
-
-
 def get_updt(loss, learning_rate=1e-4, momentum=0.9, clip=10):
-    opt_func = tf.train.AdamOptimizer(1e-6)
-    # opt_func = tf.train.RMSPropOptimizer(learning_rate, momentum=momentum)
+    #opt_func = tf.train.AdamOptimizer(1e-6)
+    opt_func = tf.train.RMSPropOptimizer(learning_rate, momentum=momentum)
     print "computing gradients..."
     gvs = opt_func.compute_gradients(loss)
     grads = [(tf.clip_by_value(grad, -clip, clip), var)
                      for grad, var in tqdm(gvs) if not grad is None]
     print "applying gradients..."
-    return opt_func.apply_gradients(grads)
+    return opt_func.apply_gradients(grads), grads

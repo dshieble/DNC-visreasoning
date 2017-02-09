@@ -21,8 +21,8 @@ os.system("rm {}/*.npy".format(cifs_path))
 #Parameters of the task and the training
 params = {}
 params["timestamp"] = str(int(time.time())) #the  identifier for this test run
-params["task"] = "square_detect" #specify the task
-params["num_iter"] = 15000 #the number of batches to run
+params["task"] = "2_square_detect" #specify the task
+params["num_iter"] = 20000 #the number of batches to run
 params["bsize"] = 10 #the batch size
 params["input_side"] = 24 #the length of each side of each image
 params["input_size"] = params["input_side"]**2 #the number of pixels
@@ -38,8 +38,8 @@ params["device"] = "/gpu:0" #Set this to /gpu:0 or /gpu:1 etc if you want to use
 params["focus_type"] = "circular_spotlight"
 params["loss_type"] = "all_steps"
 
-params["item_position"] = "fixed" # fixed or random; controls location of items in square_detect, 2_square_detect and sd tasks
-params["item_size"] = "fixed"     # ""; controls size ""
+params["item_position"] = "random" # fixed or random; controls location of items in square_detect, 2_square_detect and sd tasks
+params["item_size"] = "random"     # ""; controls size ""
 
 
 
@@ -120,7 +120,7 @@ with tf.device(params["device"]):
     output, loss = ncomputer.get_elementwise_loss(params["loss_weightings"]) 
     
     print "initializing..."
-    updt = uf.get_updt(loss)
+    updt, grads = uf.get_updt(loss)
     init = tf.global_variables_initializer()
     sess.run(init)
     print "initialized!"
@@ -154,7 +154,7 @@ with tf.device(params["device"]):
 	    ncomputer.target_output: Target_Output
         })
         
-        l, o, v = OUT[:3]
+	l, o, v = OUT[:3]
 
       	out_attr1 = OUT[4:4 + len(getattr(ncomputer.controller,attr1))]
         out_attr2 = OUT[4 + len(getattr(ncomputer.controller,attr1)):4 + len(getattr(ncomputer.controller,attr1)) +
