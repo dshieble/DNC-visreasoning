@@ -13,9 +13,11 @@ class BasicRecurrentController(BaseController):
 
     def __init__(self, input_size, output_size, memory_read_heads,
                      memory_word_size, sequence_length, batch_size=1, focus_type="mask"):
-            self.focus_type = focus_type
+        self.focus_type = focus_type
+        super(BasicRecurrentController, self).__init__(input_size, output_size, memory_read_heads,  
+                                                       memory_word_size, sequence_length, batch_size=batch_size)
  
-    def network_vars(self, batch_size, **kwargs):
+    def network_vars(self, **kwargs):
         initial_std = lambda in_nodes: np.min(1e-2, np.sqrt(2.0 / in_nodes))
         input_ = self.nn_input_size
 
@@ -29,9 +31,9 @@ class BasicRecurrentController(BaseController):
         self.b3 = tf.Variable(tf.zeros([256]), name='layer3_b')
 
         self.C1 = rnn_cell.GRUCell(256)
-        self.state = state = self.C1.zero_state(batch_size, tf.float32)
+        self.state = state = self.C1.zero_state(self.batch_size, tf.float32)
 
-    def network_op(self, X, state):
+    def network_op(self, X, state, t):
         l1_output = tf.matmul(X, self.W1) + self.b1
         l1_activation = tf.nn.relu(l1_output)
 

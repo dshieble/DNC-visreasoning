@@ -42,7 +42,7 @@ class DNC(object):
         self.controller = controller_class(self.input_size, self.output_size, self.read_heads, 
                                            self.word_size, self.sequence_length, batch_size=self.batch_size,
                                            **controller_params)
-
+        print self.controller.has_recurrent_nn
         # input data placeholders
         self.input_data = tf.placeholder(tf.float32, [batch_size, sequence_length, input_size], name='input')
         self.target_output = tf.placeholder(tf.float32, [batch_size, sequence_length, output_size], name='targets')

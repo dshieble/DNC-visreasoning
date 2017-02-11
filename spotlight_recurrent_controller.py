@@ -42,7 +42,7 @@ class SpotlightRecurrentController(BaseController):
                                                                   stddev=initial_std(self.nn_output_size)),
                                                                  name='spotlight_updater_row') 
       
-	#Multiplier to update the col focus indices
+        #Multiplier to update the col focus indices
         self.spotlight_col_updater = tf.Variable(tf.truncated_normal([self.nn_output_size, 1],
                                                                   stddev=initial_std(self.nn_output_size)),
                                                                   name='spotlight_col_updater')
@@ -52,10 +52,10 @@ class SpotlightRecurrentController(BaseController):
                                                                   name='spotlight_sigma_updater')
        
         # Biases for spotlight parameters
- 	self.spotlight_row_bias = tf.Variable(tf.zeros([1]),name='row_bias')
-	self.spotlight_col_bias = tf.Variable(tf.zeros([1]),name='col_bias')
-	self.spotlight_sigma_bias = tf.Variable(tf.zeros([1]),name='sigma_bias')
-	
+        self.spotlight_row_bias = tf.Variable(tf.zeros([1]),name='row_bias')
+        self.spotlight_col_bias = tf.Variable(tf.zeros([1]),name='col_bias')
+        self.spotlight_sigma_bias = tf.Variable(tf.zeros([1]),name='sigma_bias')
+        
         #The focus row and focus column vectors encode the distribution of possible index locations to move the focus window,
         #encoded as a vector of index-weights. These tensors store a matrix of the focus
         #vectors at each timestep. Note that the focus isn't a variable. It's dynamically updated on each batch.

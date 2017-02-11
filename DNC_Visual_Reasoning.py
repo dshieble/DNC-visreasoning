@@ -13,8 +13,16 @@ from basic_recurrent_controller import BasicRecurrentController
 from focus_recurrent_controller import FocusRecurrentController
 from spotlight_recurrent_controller import SpotlightRecurrentController
 import time
+from feedforward_controller import FeedforwardController
+from basic_recurrent_controller import BasicRecurrentController
+from focus_recurrent_controller import FocusRecurrentController
+from spotlight_recurrent_controller import SpotlightRecurrentController
+from circle_recurrent_controller import CircularSpotlightRecurrentController
 
-cifs_path = "./media/data_cifs/DNC_Visual_Reasoning_Results_Logs"
+
+cifs_path = "/media/data_cifs/DNC_Visual_Reasoning_Results_Logs"
+
+
 #Remove logging  from previous training runs
 os.system("rm {}/*.npy".format(cifs_path))
 
@@ -32,10 +40,10 @@ params["half_max_item"] = 3 #parameter for sd task; Note: if this changes, then 
 params["memory_words_num"] = 10 #the number of memory words
 params["memory_word_size"] = 10#the size of memory words
 params["memory_read_heads"] = 1 #the number of read heads
-params["print_step"] = 500 #the number of steps between each loss printintg
+params["print_step"] = 400 #the number of steps between each loss printintg
 params["save_step"] = 4000 # the number of steps between each save
 params["device"] = "/gpu:0" #Set this to /gpu:0 or /gpu:1 etc if you want to use the gpu instead
-params["focus_type"] = "circular_spotlight"
+params["focus_type"] = "spotlight "
 params["loss_type"] = "all_steps"
 
 params["item_position"] = "random" # fixed or random; controls location of items in square_detect, 2_square_detect and sd tasks
@@ -45,33 +53,21 @@ params["item_size"] = "random"     # ""; controls size ""
 
 
 # Import correct controller and define attention attributes
-
-if params["focus_type"] == "none_feedforward":
-    from feedforward_controller import FeedforwardController as ctrlr
-    attr1 = "W1"
-    attr2 = "W2"
-    attr3 = "W3"
-elif params["focus_type"] == "none_recurrent":
-    from basic_recurrent_controller import BasicRecurrentController as ctrlr
+if params["focus_type"] == "none":
+    ctrlr = BasicRecurrentController
+    get_attributes = lambda c: ([c.W1], [c.W2], [c.W3])
     attr1 = "W1"
     attr2 = "W2"
     attr3 = "W3"
 elif params["focus_type"] == "mask" or params["focus_type"] == "rowcol":
-    from focus_recurrent_controller import FocusRecurrentController as ctrlr
-    attr1 = "focus_row"
-    attr2 = "focus_col"
-    attr3 = "focus_mask"
+    ctrlr = FocusRecurrentController
+    get_attributes = lambda c: (c.focus_row, c.focus_col, c.focus_mask)
 elif params["focus_type"] == "spotlight":
-    from spotlight_recurrent_controller import SpotlightRecurrentController as ctrlr
-    attr1 = "spotlight_row"
-    attr2 = "spotlight_col"
-    attr3 = "spotlight_sigma"
+    ctrlr =  SpotlightRecurrentController
+    get_attributes = lambda c: (c.spotlight_row, c.spotlight_col, c.spotlight_sigma)
 elif params["focus_type"] == "circular_spotlight":
-    from circle_recurrent_controller import CircularSpotlightRecurrentController as ctrlr
-    attr1 = "spotlight_row"
-    attr2 = "spotlight_col"
-    attr3 = "spotlight_radius"
-
+    ctrlr = CircularSpotlightRecurrentController
+    get_attributes = lambda c: (c.spotlight_row, c.spotlight_col, c.spotlight_radius)
 
 # Set loss function
 
@@ -96,6 +92,7 @@ _, _ = uf.make_ims(params)
 #Make the directory for this run of the algorithm and save the params to it
 
 os.system("mkdir -p {}/{}".format(cifs_path, params["timestamp"]))
+os.system("cp DNC_Visual_Reasoning.py {}/{}/DNC_Visual_Reasoning_snapshot.py".format(cifs_path, params["timestamp"]))
 np.save("{}/{}/params.npy".format(cifs_path, params["timestamp"]), params)
 
 
@@ -116,7 +113,7 @@ with tf.device(params["device"]):
         memory_read_heads=params["memory_read_heads"],
         batch_size=params["bsize"]
     )
-
+    attr1, attr2, attr3 = get_attributes(ncomputer.controller)
     output, loss = ncomputer.get_elementwise_loss(params["loss_weightings"]) 
     
     print "initializing..."
@@ -133,77 +130,63 @@ with tf.device(params["device"]):
     attributes = []
     mem = []
        
-    #Run the training
-    for i in tqdm(range(params["num_iter"])):
-        
-	#Get the data and expected output for this batch
-        Input, Target_Output = uf.make_ims(params)
+for i in tqdm(range(params["num_iter"])):
 
-        #Run the  update step
+    #Get the data and expected output for this batch
+    Input, Target_Output = uf.make_ims(params)
 
-        OUT = sess.run([
-	    loss,
-  	    output,
-	    ncomputer.packed_memory_view,
-	    updt] + 
-	    getattr(ncomputer.controller,attr1) + 
-	    getattr(ncomputer.controller,attr2) +
-	    getattr(ncomputer.controller,attr3)  
-	    , feed_dict={
-	    ncomputer.input_data: Input,
-	    ncomputer.target_output: Target_Output
-        })
-        
-	l, o, v = OUT[:3]
+    #Run the  update step
 
-      	out_attr1 = OUT[4:4 + len(getattr(ncomputer.controller,attr1))]
-        out_attr2 = OUT[4 + len(getattr(ncomputer.controller,attr1)):4 + len(getattr(ncomputer.controller,attr1)) +
-                 len(getattr(ncomputer.controller,attr2))]
-        out_attr3 = OUT[4 + len(getattr(ncomputer.controller,attr1)) +
-                 len(getattr(ncomputer.controller,attr2)):4 + len(getattr(ncomputer.controller,attr1)) +
-                 len(getattr(ncomputer.controller,attr2)) + len(getattr(ncomputer.controller,attr3))]
-         
-        #Keep track of the values at this timestep
-        loss_vals.append(l)
-        input_vals.append(Input)
-        output_vals += list(o)
-        view_vals.append(v)
-        target_vals += list(Target_Output)
-        mem.append(ncomputer.packed_memory_view)
-        if params["focus_type"] == "rowcol":
-            attributes.append((np.array(out_attr1), np.array(out_attr2)))
-        elif params["focus_type"] == "mask":
-            attributes.append(np.array(out_attr3))
-	elif params["focus_type"] == "spotlight" or params["focus_type"] == "circular_spotlight":
-	    attributes.append((np.array(out_attr1), np.array(out_attr2), np.array(out_attr3)))
+    OUT = sess.run([
+    loss,
+    output,
+    ncomputer.packed_memory_view,
+    updt] +  attr1 + attr2 + attr3, 
+    feed_dict={
+        ncomputer.input_data: Input,
+        ncomputer.target_output: Target_Output
+    })
 
-        #Print the loss and accuracy thus far
-        if len(target_vals) % params["print_step"] == 0 and len(target_vals) > 0:
-            print "np.array(target_vals).shape", np.array(target_vals).shape
-            print "np.array(output_vals).shape", np.array(output_vals).shape
-
-            losses = {}
-            losses["loss"] = np.mean(loss_vals[-params["print_step"]:])
-            losses["matches"] = np.mean(np.argmax(np.array(output_vals)[-params["print_step"]:, -1], -1) == 
-                                     np.argmax(np.array(target_vals)[-params["print_step"]:, -1], -1))
-
-            print "loss", losses["loss"]
-            print "matches", losses["matches"]
-
-            np.save("{}/{}/losses_{}.npy".format(cifs_path, params["timestamp"], i), losses)
-
-        #Save the model and the masks generated
-        if len(target_vals) % params["save_step"] == 0 and len(target_vals) > 0:
-            print "saving for {}".format(i)
-            np.save("{}/{}/outputs_{}.npy".format(cifs_path, params["timestamp"], i), output_vals[-50:])
-            np.save("{}/{}/targets_{}.npy".format(cifs_path, params["timestamp"], i), target_vals[-50:])
-            np.save("{}/{}/inputs_{}.npy".format(cifs_path, params["timestamp"], i), input_vals[-50:])
-            np.save("{}/{}/attributes_{}.npy".format(cifs_path, params["timestamp"], i), attributes[-50:])
-
-            #Save the weights of the model - disabled because the model checkpoints are big and bulky 
-            # ncomputer.save(sess, 
-            #                "{}/{}".format(params["timestamp"]), cifs_path, 
-            #                "saved_weights_{}.npy".format(i))
+    l, o, v = OUT[:3]
+    out_attr1 = OUT[4:4 + len(attr1)]
+    out_attr2 = OUT[4 + len(attr1):4 + len(attr1) + len(attr2)]
+    out_attr3 = OUT[4 + len(attr1) +  len(attr2):4 + len(attr1) + len(attr2) + len(attr3)]
 
 
+    #Keep track of the values at this timestep
+    loss_vals.append(l)
+    input_vals.append(Input)
+    output_vals += list(o)
+    view_vals.append(v)
+    target_vals += list(Target_Output)
+    mem.append(ncomputer.packed_memory_view)
+    attributes.append({"attr1":np.array(out_attr1), "attr2":np.array(out_attr2), "attr3":np.array(out_attr3)})
+
+    #Print the loss and accuracy thus far
+    if len(target_vals) % params["print_step"] == 0 and len(target_vals) > 0:
+        print "np.array(target_vals).shape", np.array(target_vals).shape
+        print "np.array(output_vals).shape", np.array(output_vals).shape
+
+        losses = {}
+        losses["loss"] = np.mean(loss_vals[-params["print_step"]:])
+        losses["matches"] = np.mean(np.argmax(np.array(output_vals)[-params["print_step"]:, -1], -1) == 
+                                 np.argmax(np.array(target_vals)[-params["print_step"]:, -1], -1))
+
+        print "loss", losses["loss"]
+        print "matches", losses["matches"]
+
+        np.save("{}/{}/losses_{}.npy".format(cifs_path, params["timestamp"], i), losses)
+
+    #Save the model and the masks generated
+    if len(target_vals) % params["save_step"] == 0 and len(target_vals) > 0:
+        print "saving for {}".format(i)
+        np.save("{}/{}/outputs_{}.npy".format(cifs_path, params["timestamp"], i), output_vals[-50:])
+        np.save("{}/{}/targets_{}.npy".format(cifs_path, params["timestamp"], i), target_vals[-50:])
+        np.save("{}/{}/inputs_{}.npy".format(cifs_path, params["timestamp"], i), input_vals[-50:])
+        np.save("{}/{}/attributes_{}.npy".format(cifs_path, params["timestamp"], i), attributes[-50:])
+
+        #Save the weights of the model - disabled because the model checkpoints are big and bulky 
+        # ncomputer.save(sess, 
+        #                "{}/{}".format(params["timestamp"]), cifs_path, 
+        #                "saved_weights_{}.npy".format(i))
 

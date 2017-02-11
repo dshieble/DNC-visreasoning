@@ -381,7 +381,7 @@ def apply_spotlight(X,spotlight_row, spotlight_col, spotlight_sigma):
     # Make axes
     x_axis = np.float32(range(-12,12))
     y_axis = np.float32(range(-12,12))    
-    plane = np.float32(tuple(itertools.product(x_axis,y_axis)))
+    plane = np.float32(tuple(itertools.product(x_axis, y_axis)))
 
     tmp_id = tf.constant(np.identity(2,dtype=np.float32)) 
     
@@ -393,7 +393,7 @@ def apply_spotlight(X,spotlight_row, spotlight_col, spotlight_sigma):
     spotlight = dist.pdf(plane)
     
     spotlight = tf.reshape(spotlight,(24,24))
-    spotlit_X = tf.multiply(X,spotlight)
+    spotlit_X = tf.multiply(X, spotlight)
     
      
     return spotlit_X
