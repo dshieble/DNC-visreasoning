@@ -3,6 +3,7 @@ import numpy as np
 from tensorflow.python.ops import gen_state_ops
 from tqdm import tqdm
 import itertools
+import ipdb
 
 def pairwise_add(u, v=None, is_batch=False):
     """
@@ -204,7 +205,7 @@ def get_sd_images(size, bsize, sequence_length, half_max_item, item_size, item_p
         y.append(label)
     return np.array(X), np.array(y)
 
-def get_square_detect_images(size, bsize, sequence_length, item_size, item_position):
+def get_square_detect_images(size, bsize, sequence_length, item_size, item_position, noise):
     X = []
     y = []
     
@@ -214,8 +215,13 @@ def get_square_detect_images(size, bsize, sequence_length, item_size, item_posit
         p_or_a *=1
         label[p_or_a] = 1
 
-        canvas = np.zeros((size,size))
-
+        if noise:
+            noise_prob = .25
+        else:
+            noise_prob = 0
+          
+        canvas = 1*(np.random.uniform(0,1,size=(size,size)) < noise_prob)
+       
         if not p_or_a:
             X.append([np.ravel(canvas) for j in range(sequence_length)])
             y.append(label)
@@ -232,14 +238,14 @@ def get_square_detect_images(size, bsize, sequence_length, item_size, item_posit
 
             square = np.ones((square_side, square_side))
             canvas[upper_left_corner[0]:upper_left_corner[0] + square_side , upper_left_corner[1]:upper_left_corner[1] + square_side] = square
-
+           
             X.append([np.ravel(canvas) for j in range(sequence_length)])
             y.append(label) 
 
     return np.array(X), np.array(y)
 
 
-def get_2_square_detect_images(size, bsize, sequence_length,item_size,item_position):
+def get_two_square_detect_images(size, bsize, sequence_length,item_size,item_position):
     X = []
     y = []
     
@@ -306,6 +312,155 @@ def get_2_square_detect_images(size, bsize, sequence_length,item_size,item_posit
 		
     return np.array(X), np.array(y)
 
+def get_postlocate_images(size,bsize,sequence_length, item_size,SOA,ISI):
+	X = []
+	y = []
+	item_dict = {}
+	
+	# Label corresponds to the pre-image of the permutation
+	labels = np.identity(4)
+
+	# Make items	
+	if item_size == "fixed":
+		sz = size/8
+	else:
+		sz = np.random.randint(2,size/2 - 1)
+		
+	rem = (size/2 - sz)/2
+
+	for ii in range(1,5):
+	
+		key = "item" + str(ii)
+		item_dict[key] = 1*(np.random.uniform(0,1,size=(sz,sz)) < .5)
+	
+	for bb in range(bsize):
+               
+		# Construct stimulus 1
+		
+		stim1 = np.zeros((size,size))
+		
+		stim1[rem:sz+rem, rem:sz+rem]	= item_dict["item1"]
+		stim1[size/2 + rem:size/2 + rem + sz, rem:sz+rem] = item_dict["item2"]
+		stim1[rem:sz+rem,size/2 + rem:size/2 + rem + sz] = item_dict["item3"]
+		stim1[size/2 + rem:size/2 + rem + sz, size/2 + rem:size/2 + rem + sz] = item_dict["item4"]		
+
+		# Construct Stimulus 2
+		
+		stim2 = np.zeros((size,size))
+
+		# Construct stimulus 3
+
+		stim3 = np.zeros((size,size))
+		
+		new_shuffled_items = np.random.permutation(4)
+		
+		key1 = "item" + str(new_shuffled_items[0] + 1)
+		stim3[rem:sz+rem, rem:sz+rem]	= item_dict[key1]
+			
+		key2 = "item" + str(new_shuffled_items[1] + 1)
+		stim3[size/2 + rem:size/2 + rem + sz, rem:sz+rem] = item_dict[key2]
+
+		key3 = "item" + str(new_shuffled_items[2] + 1)
+		stim3[rem:sz+rem,size/2 + rem:size/2 + rem + sz] = item_dict[key3]
+		
+		key4 = "item" + str(new_shuffled_items[3] + 1)
+		stim3[size/2 + rem:size/2 + rem + sz, size/2 + rem:size/2 + rem + sz] = item_dict[key4]
+
+		# Place flag and get label
+
+		target_location = np.random.randint(0,4)
+		label = labels[new_shuffled_items[target_location],:]
+
+		if target_location == 0:
+			stim3[0,0] = 2
+		elif target_location == 1:
+			stim3[size - 1,0] = 2
+		elif target_location == 2:
+			stim3[0,size - 1] = 2
+		elif target_location == 3: 
+			stim3[size - 1,size - 1] = 2
+		
+		
+		# Place stimuli in sequence
+		stim_sequence = [np.ravel(stim1)*(j <= SOA) + 
+					np.ravel(stim2)*(j > SOA and j <= SOA + ISI) +
+					np.ravel(stim3)*(j > SOA + ISI and j <= sequence_length)
+					 for j in range(sequence_length)]
+
+		X.append(stim_sequence)
+		y.append(label)
+
+	return np.array(X), np.array(y)
+
+def get_locate_images(size,bsize,sequence_length, item_size,SOA,ISI):
+	X = []
+	y = []
+
+	# Make items
+
+	labels = np.identity(4)
+
+	item_dict = {}
+	
+	if item_size == "fixed":
+		sz = size/8
+	else:
+		sz = np.random.randint(2,size/2 - 1)
+		
+	rem = (size/2 - sz)/2
+
+	for ii in range(1,5):
+	
+		key = "item" + str(ii)
+		item_dict[key] = 1*(np.random.uniform(0,1,size=(sz,sz)) < .5)
+
+	target_item = np.random.randint(0,4)
+	
+	for bb in range(bsize):
+                
+		# Construct stimulus 1
+		
+		stim1 = np.zeros((size,size))
+
+		key = "item" + str(target_item + 1)
+		stim1[rem:sz+rem, rem:sz+rem]	= item_dict[key]
+
+		# Construct Stimulus 2
+		
+		stim2 = np.zeros((size,size))
+
+		# Construct stimulus 3
+
+		stim3 = np.zeros((size,size))
+		
+		new_shuffled_items = np.random.permutation(4)
+		target_location = np.where(new_shuffled_items == target_item)[0][0]
+
+		key1 = "item" + str(new_shuffled_items[0] + 1)
+		stim3[rem:sz+rem, rem:sz+rem]	= item_dict[key1]
+			
+		key2 = "item" + str(new_shuffled_items[1] + 1)
+		stim3[size/2 + rem:size/2 + rem + sz, rem:sz+rem] = item_dict[key2]
+
+		key3 = "item" + str(new_shuffled_items[2] + 1)
+		stim3[rem:sz+rem,size/2 + rem:size/2 + rem + sz] = item_dict[key3]
+		
+		key4 = "item" + str(new_shuffled_items[3] + 1)
+		stim3[size/2 + rem:size/2 + rem + sz, size/2 + rem:size/2 + rem + sz] = item_dict[key4]
+
+		label = labels[target_location,:]
+			
+		# Place stimuli in sequence
+		stim_sequence = [np.ravel(stim1)*(j <= SOA) + 
+					np.ravel(stim2)*(j > SOA and j <= SOA + ISI) +
+					np.ravel(stim3)*(j > SOA + ISI and j <= sequence_length)
+					 for j in range(sequence_length)]
+
+		X.append(stim_sequence)
+		y.append(label)
+
+	return np.array(X), np.array(y)
+
 
 def make_ims(params):
 
@@ -315,9 +470,9 @@ def make_ims(params):
     elif params["task"] == "square_detect":
         Input, Target_Output = get_square_detect_images(size=params["input_side"], 
                                                        bsize=params["bsize"], sequence_length=params["sequence_length"],
-					               item_size = params["item_size"], item_position = params["item_size"])
-    elif params["task"] == "2_square_detect":
-        Input, Target_Output = get_2_square_detect_images(size=params["input_side"], 
+					               item_size = params["item_size"], item_position = params["item_size"], noise=params["noise"])
+    elif params["task"] == "two_square_detect":
+        Input, Target_Output = get_two_square_detect_images(size=params["input_side"], 
                                                        bsize=params["bsize"], sequence_length=params["sequence_length"],
 							item_size = params["item_size"], item_position = params["item_position"])
     elif params["task"] == "right":
@@ -331,9 +486,18 @@ def make_ims(params):
     elif params["task"] == "lrb":
         Input, Target_Output = get_lrb_images(size=params["input_side"], 
                                                        bsize=params["bsize"], sequence_length=params["sequence_length"])
-        
+    elif params["task"] == "locate":
+        Input, Target_Output = get_locate_images(size=params["input_side"], 
+                                                       bsize=params["bsize"], sequence_length=params["sequence_length"], 
+							item_size = params["item_size"], SOA = params["SOA"], ISI = params["ISI"])   
+    elif params["task"] == "postlocate":
+        Input, Target_Output = get_postlocate_images(size=params["input_side"], 
+                                                       bsize=params["bsize"], sequence_length=params["sequence_length"], 
+							item_size = params["item_size"], SOA = params["SOA"], ISI = params["ISI"])
+
     Target_Output = np.hstack([np.expand_dims(Target_Output, 1) for i in range(Input.shape[1])])
     return Input, Target_Output
+
 
 
 def binary_cross_entropy(predictions, targets):
