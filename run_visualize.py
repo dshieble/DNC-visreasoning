@@ -3,7 +3,7 @@ import numpy as np
 import os
 import ipdb
 
-task_number = "1487629593"
+task_number = "1487706293"
 media_dir = "./media"
 output_dir = os.path.join(media_dir, "data_cifs/DNC_Visual_Reasoning_Results_Logs/",task_number)
 params = np.load(os.path.join(output_dir,"params.npy")).item()

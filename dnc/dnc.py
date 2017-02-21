@@ -163,6 +163,8 @@ class DNC(object):
         read_weightings = []
         write_weightings = []
         usage_vectors = []
+        memory_matrix = []
+	link_matrix = []
         dependencies = [tf.no_op()]
 
         controller_state = self.controller.get_state() if self.controller.has_recurrent_nn else None
@@ -203,7 +205,9 @@ class DNC(object):
                     read_weightings.append(output_list[5])
                     write_weightings.append(output_list[1])
                     usage_vectors.append(output_list[0])
-
+       		    memory_matrix.append(output_list[2])
+		    link_matrix.append(output_list[3])
+					
                     # just to make sure iterations run serially
                     dependencies = [tf.identity(output_list[0])]
 
@@ -217,7 +221,9 @@ class DNC(object):
                 'write_gates': tf.slice(tf.pack(write_gates, axis=1), [0, 0, 0], [-1, self.sequence_length, -1]),
                 'read_weightings': tf.slice(tf.pack(read_weightings, axis=1), [0, 0, 0, 0], [-1, self.sequence_length, -1, -1]),
                 'write_weightings': tf.slice(tf.pack(write_weightings, axis=1), [0, 0, 0], [-1, self.sequence_length, -1]),
-                'usage_vectors': tf.slice(tf.pack(usage_vectors, axis=1), [0, 0, 0], [-1, self.sequence_length, -1])
+                'usage_vectors': tf.slice(tf.pack(usage_vectors, axis=1), [0, 0, 0], [-1, self.sequence_length, -1]),
+		'memory_matrix': tf.slice(tf.pack(memory_matrix, axis=1), [0, 0, 0, 0], [-1, self.sequence_length, -1,-1]),
+		'link_matrix': tf.slice(tf.pack(link_matrix, axis=1), [0, 0, 0, 0], [-1, self.sequence_length, -1, -1])
             }
 
 

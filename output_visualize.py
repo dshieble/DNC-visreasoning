@@ -88,11 +88,11 @@ def reasoning_visualizer(task_type, focus_type,output_dir, save_dir):
 					vmax = small_act_max*(tt > 0) + big_act_max*(tt == 0))
 					
 				initial_movie_string = "ffmpeg -f image2 -r 2 -i " + \
-						os.path.join(input_dir,"initial_input_%03d.png") + " -vf scale=100:100 -vcodec mpeg4 -y "  + \
+						os.path.join(input_dir,"initial_input_%03d.png") + " -vf scale=50:50 -vcodec mpeg4 -y "  + \
 						os.path.join(input_dir,"initial_input.mp4")
 						
 				final_movie_string = "ffmpeg -f image2 -r 2 -i " + \
-					os.path.join(input_dir,"final_input_%03d.png") +  " -vf scale=100:100 -vcodec mpeg4 -y " + \
+					os.path.join(input_dir,"final_input_%03d.png") +  " -vf scale=50:50 -vcodec mpeg4 -y " + \
 					os.path.join(input_dir,"final_input.mp4")
 
 				subprocess.call(initial_movie_string, shell=shell_val)
@@ -122,16 +122,16 @@ def reasoning_visualizer(task_type, focus_type,output_dir, save_dir):
 						vmax = small_act_max*(tt > 0) + big_act_max*(tt == 0))
 						
 					initial_movie_string = "ffmpeg -f image2 -r 2 -i " + \
-						os.path.join(focus_dir,"initial_focus_%03d.png") + " -vf scale=100:100 -vcodec mpeg4 -y "  + \
+						os.path.join(focus_dir,"initial_focus_%03d.png") + " -vf scale=50:50 -vcodec mpeg4 -y "  + \
 						os.path.join(focus_dir,"initial_focus.mp4")
 						
 					final_movie_string = "ffmpeg -f image2 -r 2 -i " + \
-						os.path.join(focus_dir,"final_focus_%03d.png") +  " -vf scale=100:100 -vcodec mpeg4 -y " + \
+						os.path.join(focus_dir,"final_focus_%03d.png") +  " -vf scale=50:50 -vcodec mpeg4 -y " + \
 						os.path.join(focus_dir,"final_focus.mp4")
 
 					subprocess.call(initial_movie_string, shell=shell_val)
 					subprocess.call(final_movie_string, shell=shell_val)
-					
+				
 				for fn in glob.glob(os.path.join(focus_dir, "*.png")):
 					os.remove(fn)
 					
@@ -157,11 +157,11 @@ def reasoning_visualizer(task_type, focus_type,output_dir, save_dir):
 						vmax = small_act_max*(tt > 0) + big_act_max*(tt == 0))
 						
 					initial_movie_string = "ffmpeg -f image2 -r 2 -i " + \
-						os.path.join(focus_dir,"initial_focus_%03d.png") + " -vf scale=100:100 -vcodec mpeg4 -y "  + \
+						os.path.join(focus_dir,"initial_focus_%03d.png") + " -vf scale=50:50 -vcodec mpeg4 -y "  + \
 						os.path.join(focus_dir,"initial_focus.mp4")
 						
 					final_movie_string = "ffmpeg -f image2 -r 2 -i " + \
-						os.path.join(focus_dir,"final_focus_%03d.png") +  " -vf scale=100:100 -vcodec mpeg4 -y " + \
+						os.path.join(focus_dir,"final_focus_%03d.png") +  " -vf scale=50:50 -vcodec mpeg4 -y " + \
 						os.path.join(focus_dir,"final_focus.mp4")
 
 					subprocess.call(initial_movie_string, shell=shell_val)
@@ -172,10 +172,10 @@ def reasoning_visualizer(task_type, focus_type,output_dir, save_dir):
 					
 		elif typ == "memory":
 		
-			mem_dir = 'Memory'
+			mem_dir = os.path.join(save_dir,'Memory')
 			
-			if not os.path.exists(os.path.join(save_dir,mem_dir)):
-				os.mkdir(os.path.join(save_dir,mem_dir))
+			if not os.path.exists(os.path.join(mem_dir)):
+				os.mkdir(mem_dir)
 		
 			ag_start = np.squeeze(np.load(data_list[0])[0]["allocation_gates"][0,:,:])
 			ww_start = np.squeeze(np.load(data_list[0])[0]["write_weightings"][0,:,:])
@@ -193,40 +193,85 @@ def reasoning_visualizer(task_type, focus_type,output_dir, save_dir):
 			
 			tm = np.shape(ag_start)[0]
 			
-			# Figures
+			# Plots
 			
 			fig = plt.figure()
 			plt.plot(ag_start)
-			fig.savefig(os.path.join(save_dir,mem_dir, "ag_start.png"))
+			fig.savefig(os.path.join(mem_dir, "ag_start.png"))
 			
 			fig = plt.figure()
 			plt.plot(ag_finish)
-			fig.savefig(os.path.join(save_dir,mem_dir, "ag_finish.png"))
+			fig.savefig(os.path.join(mem_dir, "ag_finish.png"))
 
 			fig = plt.figure()
 			plt.plot(wg_start)
-			fig.savefig(os.path.join(save_dir,mem_dir, "wg_start.png"))
+			fig.savefig(os.path.join(mem_dir, "wg_start.png"))
 			
 			fig = plt.figure()
 			plt.plot(wg_finish)
-			fig.savefig(os.path.join(save_dir,mem_dir, "wg_finish.png"))
+			fig.savefig(os.path.join(mem_dir, "wg_finish.png"))
 
 			fig = plt.figure()
 			plt.plot(fg_start)
-			fig.savefig(os.path.join(save_dir,mem_dir, "fg_start.png"))
+			fig.savefig(os.path.join(mem_dir, "fg_start.png"))
 			
 			fig = plt.figure()
 			plt.plot(fg_finish)
-			fig.savefig(os.path.join(save_dir,mem_dir, "fg_finish.png"))			
+			fig.savefig(os.path.join(mem_dir, "fg_finish.png"))			
 			
-			imsave(os.path.join(save_dir,mem_dir,"ww_start.png"),ww_start,vmin=0,vmax=big_act_max)
+			# Images
 			
-			imsave(os.path.join(save_dir,mem_dir,"ww_finish.png"),ww_finish,vmin=0,vmax=big_act_max)
+			imsave(os.path.join(mem_dir,"ww_start.png"),ww_start,vmin=0,vmax=1e-2)
+			
+			imsave(os.path.join(mem_dir,"ww_finish.png"),ww_finish,vmin=0,vmax=1e-2)
 		
-			imsave(os.path.join(save_dir,mem_dir,"rw_start.png"),rw_start,vmin=0,vmax=big_act_max)
+			imsave(os.path.join(mem_dir,"rw_start.png"),rw_start,vmin=0,vmax=1e-2)
 			
-			imsave(os.path.join(save_dir,mem_dir,"rw_finish.png"),rw_finish,vmin=0,vmax=big_act_max)	
+			imsave(os.path.join(mem_dir,"rw_finish.png"),rw_finish,vmin=0,vmax=1e-2)	
 
-			imsave(os.path.join(save_dir,mem_dir,"uv_start.png"),uv_start,vmin=0,vmax=big_act_max)
+			imsave(os.path.join(mem_dir,"uv_start.png"),uv_start,vmin=0,vmax=1e-2)
 			
-			imsave(os.path.join(save_dir,mem_dir,"uv_finish.png"),uv_finish,vmin=0,vmax=big_act_max)
+			imsave(os.path.join(mem_dir,"uv_finish.png"),uv_finish,vmin=0,vmax=1e-2)
+			
+			# Movies
+			
+			for tt in range(tm):
+			
+				mem_matrix_start = np.squeeze(np.load(data_list[0])[0]["memory_matrix"][0,tt,:,:])
+				mem_matrix_finish = np.squeeze(np.load(data_list[-1])[-1]["memory_matrix"][-1,tt,:,:])
+				
+				link_matrix_start = np.squeeze(np.load(data_list[0])[0]["link_matrix"][0,tt,:,:])
+				link_matrix_finish = np.squeeze(np.load(data_list[-1])[-1]["link_matrix"][-1,tt,:,:])
+				
+				imsave(os.path.join(mem_dir,"initial_memory_matrix_" + str('%03d' % (tt + 1)) + ".png"),mem_matrix_start, vmin=-1e-2,vmax=1e-2)
+				imsave(os.path.join(mem_dir,"final_memory_matrix_" + str('%03d' % (tt + 1)) + ".png"),mem_matrix_finish, vmin=-1e-2,vmax=1e-2)
+				imsave(os.path.join(mem_dir,"initial_link_matrix_" + str('%03d' % (tt + 1)) + ".png"),link_matrix_start, vmin=0,vmax=1e-2)
+				imsave(os.path.join(mem_dir,"final_link_matrix_" + str('%03d' % (tt + 1)) + ".png"),link_matrix_start, vmin=0,vmax=1e-2)
+				
+			initial_movie_string_mem = "ffmpeg -f image2 -r 2 -i " + \
+				os.path.join(mem_dir,"initial_memory_matrix_%03d.png") + " -vf scale=50:50 -vcodec mpeg4 -y "  + \
+				os.path.join(mem_dir,"initial_memory_matrix.mp4")
+					
+			final_movie_string_mem = "ffmpeg -f image2 -r 2 -i " + \
+				os.path.join(mem_dir,"final_memory_matrix_%03d.png") +  " -vf scale=50:50 -vcodec mpeg4 -y " + \
+				os.path.join(mem_dir,"final_memory_matrix.mp4")
+				
+			initial_movie_string_link = "ffmpeg -f image2 -r 2 -i " + \
+				os.path.join(mem_dir,"initial_link_matrix_%03d.png") + " -vf scale=50:50 -vcodec mpeg4 -y "  + \
+				os.path.join(mem_dir,"initial_link_matrix.mp4")
+					
+			final_movie_string_link = "ffmpeg -f image2 -r 2 -i " + \
+				os.path.join(mem_dir,"final_link_matrix_%03d.png") +  " -vf scale=50:50 -vcodec mpeg4 -y " + \
+				os.path.join(mem_dir,"final_link_matrix.mp4")
+				
+			subprocess.call(initial_movie_string_mem, shell=shell_val)
+			subprocess.call(final_movie_string_mem, shell=shell_val)
+			subprocess.call(initial_movie_string_link, shell=shell_val)
+			subprocess.call(final_movie_string_link, shell=shell_val)
+								
+			for fn in glob.glob(os.path.join(mem_dir, "*memory*.png")):
+				os.remove(fn)
+
+			for fn in glob.glob(os.path.join(mem_dir, "*link*.png")):
+				os.remove(fn)
+
