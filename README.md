@@ -1,2 +1,2 @@
 # DNC-visreasoning
-Visual reasoning tasks using DNCs. Initialized from DNC-tensorflow
+Visual reasoning tasks using DNCs.
